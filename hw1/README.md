@@ -1,14 +1,13 @@
 This project utilizes LSTM and GloVe word embeddings. Please use the following instructions to run the program:
 
 ### Clone the repo & install requirements
-
-	```
-	git clone git@github.com:Lorenayannnnn/CSCI-499-HW.git
-	cd hw1/
-	virtualenv -p $(which python3) ./hw1
-	source ./hw1/bin/activate
-	pip3 install -r requirements.txt
-	```
+```
+git clone git@github.com:Lorenayannnnn/CSCI-499-HW.git
+cd hw1/
+virtualenv -p $(which python3) ./hw1
+source ./hw1/bin/activate
+pip3 install -r requirements.txt
+```
 
 ### Download GloVe
 GloVe with dimension of 100 is used. Please download [GloVe](https://drive.google.com/file/d/1n15zWXLjxjqX72R6dHyAPTA3N5b22c_U/view?usp=sharing) and put it directly under `hw1` directory. 
@@ -23,7 +22,7 @@ python train.py \
     --num_epochs=100 \
     --val_every=5 \
     --force_cpu 
-```    
+```
 
 ### Report
 Discussions of implementation choices and performances are documented in [REPORT.md](REPORT.md)
