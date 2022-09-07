@@ -300,9 +300,6 @@ def train(args, model, loaders, optimizer, action_criterion, target_criterion, d
     plt.subplots_adjust(wspace=0.4, hspace=0.4)
     plt.show()
 
-    # Save model
-    torch.save(model, "saved_model.pt")
-
     # Save result graph
     figure.savefig("result.png")
 

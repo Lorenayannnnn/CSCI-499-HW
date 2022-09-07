@@ -32,7 +32,7 @@ Used cross entropy loss for multi-class classification
 
 ## Performance
 ### LSTM with GloVe Embeddings & 2 independent prediction heads
-![Result_2](experiments/results/result_1_(GloVe_with_2_independent_prediction_heads).png)
+![Result_2](performance_figures/result_1_(GloVe_with_2_independent_prediction_heads).png)
 - Final Result (Approximate values)
 
     |                   |   Loss   | Accuracy |
@@ -45,7 +45,7 @@ Used cross entropy loss for multi-class classification
   - Easier to train the classifier on action since there's fewer number of action classes than target
   - Validation loss starts to increasing before training 10 epochs, especially for target objects, so there's overfitting to some extent
 ### LSTM with GloVe Embeddings & Target head taking in action head prediction
-  ![Result_2](experiments/results/result_2(GloVe_with_Target_takes_in_action).png)
+  ![Result_2](performance_figures/result_2(GloVe_with_Target_takes_in_action).png)
 - Final Result (Approximate values)
 
   |                   |   Loss   | Accuracy |
@@ -57,7 +57,7 @@ Used cross entropy loss for multi-class classification
 - Comment: Performance is slightly inferior to having 2 independent prediction heads
   
 ### LSTM with GloVe Embeddings & Action head taking in Target head prediction
-![Result_3](experiments/results/result_3(GloVe_with_Action_takes_in_target).png)
+![Result_3](performance_figures/result_3(GloVe_with_Action_takes_in_target).png)
 
   |                   |   Loss   | Accuracy |
   |:-----------------:|:--------:|:--------:|
