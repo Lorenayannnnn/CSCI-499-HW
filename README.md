@@ -32,4 +32,4 @@ python train.py \
 ```    
 
 ### Report
-Discussions of implementation choices and performances are documented in `hw1/REPORT.md`
+Discussions of implementation choices and performances are documented in [REPORT.md](hw1/REPORT.md)
