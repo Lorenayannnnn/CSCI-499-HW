@@ -95,15 +95,6 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     n_unks = 0
     n_tks = 0
     for (idx, entry) in enumerate(training_data):
-        # TODO
-        instruction = entry[0]
-        if idx == 0:
-            instruction += f" {training_data[idx + 1][0]}"
-        elif idx == len(training_data) - 1:
-            instruction = f"{training_data[idx - 1][0]} {instruction}"
-        else:
-            instruction = f"{training_data[idx + 1][0]}"
-
         processed_instruction = preprocess_string(entry[0])
         action = entry[1][0]
         target = entry[1][1]

@@ -20,7 +20,7 @@
 
 ### Model
 - Embedding layer with dimension of 100 and weights initialized from GloVe word embeddings (To help the model to capture sub-linear relations between words in instructions more effectively than just randomly initializing weights for the embedding layer)
-- LSTM with dimension of 64
+- LSTM with dimension of 64 (arbitrarily chosen value)
 - Dropout layer: to mitigate overfitting
 - 2 separate Linear layers for predicting action(out_feature = 8) and target(out_feature = 80)
 
@@ -31,8 +31,23 @@ Used Adam instead of SGD for better convergence to global minimum with momentum
 Used cross entropy loss for multi-class classification
 
 ## Performance
+### LSTM without GloVe Embeddings & 2 independent prediction heads
+![Result_0](performance_figures/result_0(simple_LSTM).png)
+- Final Result (Approximate values)
+
+    |                   |   Loss   | Accuracy |
+    |:-----------------:|:--------:|:--------:|
+    |  Training Action  | 0.001946 |  0.9809  | 
+    |  Training Target  | 0.01896  |  0.8300  |
+    | Validation Action | 0.006013 |  0.9510  |
+    | Validation Target | 0.04836  |  0.7227  |
+- Comments:
+  - Compared to using LSTM with GloVe, the model performs slightly worse.
+  - The differences between accuracy and loss for predicting action is not as significant as that of predicting target (given that target has more classes)
+  - The following model setup all use GloVe.
+
 ### LSTM with GloVe Embeddings & 2 independent prediction heads
-![Result_2](performance_figures/result_1_(GloVe_with_2_independent_prediction_heads).png)
+![Result_1](performance_figures/result_1(GloVe_with_2_independent_prediction_heads).png)
 - Final Result (Approximate values)
 
     |                   |   Loss   | Accuracy |
@@ -72,5 +87,5 @@ Having 2 separate prediction heads performs better than both having target head 
 
 
 ## Other possible concerns/improvements
-- Try with other hyperparameters, such as having 2 stacked LSTM layers instead of 1
-- Try larger dimension for LSTM hidden layer
+- Try with other hyperparameters, such as having 2 or more stacked LSTM layers instead of 1 to represent more complex relations
+- Try different dimensions for LSTM hidden layer
