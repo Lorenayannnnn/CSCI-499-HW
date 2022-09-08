@@ -328,6 +328,8 @@ def main(args):
             target_criterion,
             device,
         )
+        print(f"val action loss: {val_action_loss} | val action acc: {val_action_acc}")
+        print(f"val target loss: {val_target_loss} | val target acc: {val_target_acc}")
     else:
         train(
             args, model, loaders, optimizer, action_criterion, target_criterion, device

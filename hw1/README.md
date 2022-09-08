@@ -15,7 +15,7 @@ pip3 install -r requirements.txt
 GloVe with dimension of 100 is used. Please download [GloVe](https://drive.google.com/file/d/1n15zWXLjxjqX72R6dHyAPTA3N5b22c_U/view?usp=sharing) and put it directly under `hw1` directory. 
 
 ### Run the program
-(Due to the limitation of my computer I only ran 50 epochs🥲)
+(sorry that I forgot to save checkpoints of my model😣, so --eval is not going to work properly (just going to use an un-trained model). Please run this without --eval to get correct loss & accuracy)
 ```
 cd hw1/
 python train.py \
