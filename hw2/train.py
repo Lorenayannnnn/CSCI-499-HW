@@ -3,6 +3,7 @@ import os
 import tqdm
 import torch
 from sklearn.metrics import accuracy_score
+from torch.utils.data import TensorDataset, DataLoader
 
 from eval_utils import downstream_validation
 import utils
@@ -45,8 +46,24 @@ def setup_dataloader(args):
     # dataloaders.
     # ===================================================== #
 
-    train_loader = None
-    val_loader = None
+    # Split all sentences: train and validation
+    train_sentences, val_sentences = utils.create_train_val_splits(all_sentences=encoded_sentences)
+
+    # Skip gram: 1 token as input and 2 words before & 2 words after as output
+    # $(context_window_len) number of words before and after the target token as the token's context
+    context_window_len = 2
+    pad_token = vocab_to_index['<pad>']
+    # Skip gram:
+    # Input: a token. Output: context words surrounding the input token
+    # Use the padding token if the context word does not exist (e.g.: 2 words before the first token in a sentence)
+    train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token)
+    val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token)
+
+    train_dataset = TensorDataset(torch.from_numpy(train_input), torch.from_numpy(train_labels))
+    val_dataset = TensorDataset(torch.from_numpy(val_input), torch.from_numpy(val_labels))
+
+    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size)
+    val_loader = DataLoader(val_dataset, shuffle=False, batch_size=args.batch_size)
     return train_loader, val_loader
 
 
