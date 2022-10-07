@@ -8,9 +8,10 @@ from torch.utils.data import TensorDataset, DataLoader
 from eval_utils import downstream_validation
 import utils
 import data_utils
+from hw2.model import SkipGramModel
 
 
-def setup_dataloader(args):
+def setup_dataloader(args, context_window_len):
     """
     return:
         - train_loader: torch.utils.data.Dataloader
@@ -34,7 +35,7 @@ def setup_dataloader(args):
         suggested_padding_len,
     )
 
-    # ================== TODO: CODE HERE ================== #
+    # ===================================================== #
     # Task: Given the tokenized and encoded text, you need to
     # create inputs to the LM model you want to train.
     # E.g., could be target word in -> context out or
@@ -51,7 +52,6 @@ def setup_dataloader(args):
 
     # Skip gram: 1 token as input and 2 words before & 2 words after as output
     # $(context_window_len) number of words before and after the target token as the token's context
-    context_window_len = 2
     pad_token = vocab_to_index['<pad>']
     # Skip gram:
     # Input: a token. Output: context words surrounding the input token
@@ -67,19 +67,20 @@ def setup_dataloader(args):
     return train_loader, val_loader
 
 
-def setup_model(args):
+def setup_model(args, n_vocab: int, context_window_len: int):
     """
     return:
-        - model: YourOwnModelClass
+        - model: SkipGramModel
     """
-    # ================== TODO: CODE HERE ================== #
+    # ===================================================== #
     # Task: Initialize your CBOW or Skip-Gram model.
     # ===================================================== #
-    model = None
+    n_embedding = 128
+    model = SkipGramModel(n_vocab, n_embedding, context_window_len)
     return model
 
 
-def setup_optimizer(args, model):
+def setup_optimizer(args, model, device):
     """
     return:
         - criterion: loss_fn
@@ -89,8 +90,8 @@ def setup_optimizer(args, model):
     # Task: Initialize the loss function for predictions. 
     # Also initialize your optimizer.
     # ===================================================== #
-    criterion = None
-    optimizer = None
+    criterion = torch.nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.Adam(params=model.parameters())
     return criterion, optimizer
 
 
@@ -175,15 +176,16 @@ def main(args):
         return
 
     # get dataloaders
-    train_loader, val_loader = setup_dataloader(args)
+    context_window_len = 2      # context window length for skipgram model output
+    train_loader, val_loader = setup_dataloader(args, context_window_len)
     loaders = {"train": train_loader, "val": val_loader}
 
     # build model
-    model = setup_model(args)
+    model = setup_model(args, n_vocab=args.vocab_size, context_window_len=context_window_len)
     print(model)
 
     # get optimizer
-    criterion, optimizer = setup_optimizer(args, model)
+    criterion, optimizer = setup_optimizer(args, model, device)
 
     for epoch in range(args.num_epochs):
         # train model for a single epoch
@@ -280,7 +282,7 @@ if __name__ == "__main__":
         type=int,
         help="number of epochs between saving model checkpoint",
     )
-    # ================== TODO: CODE HERE ================== #
+    # ===================================================== #
     # Task (optional): Add any additional command line
     # parameters you may need here
     # ===================================================== #
