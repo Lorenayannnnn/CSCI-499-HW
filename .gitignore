@@ -132,4 +132,4 @@ dmypy.json
 .DS_Store
 
 # PA2
-./hw2/books
+hw2/books
