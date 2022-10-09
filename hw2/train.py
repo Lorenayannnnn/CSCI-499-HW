@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from eval_utils import downstream_validation
 import utils
 import data_utils
-from hw2.model import SkipGramModel
+from model import SkipGramModel, CBOWModel
 
 
 def setup_dataloader(args, context_window_len):
@@ -19,7 +19,7 @@ def setup_dataloader(args, context_window_len):
     """
 
     # read in training data from books dataset
-    sentences = data_utils.process_book_dir(args.books_dir)
+    sentences = data_utils.process_book_dir(args.data_dir)
 
     # build one hot maps for input and output
     (
@@ -48,6 +48,7 @@ def setup_dataloader(args, context_window_len):
     # ===================================================== #
 
     # Split all sentences: train and validation
+    print("INFO: Start parsing sentences to train and validation dataset")
     train_sentences, val_sentences = utils.create_train_val_splits(all_sentences=encoded_sentences)
 
     # Skip gram: 1 token as input and 2 words before & 2 words after as output
@@ -56,27 +57,38 @@ def setup_dataloader(args, context_window_len):
     # Skip gram:
     # Input: a token. Output: context words surrounding the input token
     # Use the padding token if the context word does not exist (e.g.: 2 words before the first token in a sentence)
-    train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token)
-    val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token)
+
+    # CBOW
+    train_input, train_labels = utils.get_input_label_data_cbow(train_sentences, context_window_len, pad_token,
+                                                                     args.vocab_size + 4)
+    val_input, val_labels = utils.get_input_label_data_cbow(val_sentences, context_window_len, pad_token,
+                                                                 args.vocab_size + 4)
+
+    # Skipgram TODO
+    # train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token, args.vocab_size+4)
+    # val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token, args.vocab_size+4)
 
     train_dataset = TensorDataset(torch.from_numpy(train_input), torch.from_numpy(train_labels))
     val_dataset = TensorDataset(torch.from_numpy(val_input), torch.from_numpy(val_labels))
 
     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(val_dataset, shuffle=False, batch_size=args.batch_size)
+    print("INFO: Finished parsing sentences to train and validation dataset")
     return train_loader, val_loader
 
 
 def setup_model(args, n_vocab: int, context_window_len: int):
     """
     return:
-        - model: SkipGramModel
+        - model: SkipGramModel/CBOWModel
     """
     # ===================================================== #
     # Task: Initialize your CBOW or Skip-Gram model.
     # ===================================================== #
+    # TODO setup model
     n_embedding = 128
-    model = SkipGramModel(n_vocab, n_embedding, context_window_len)
+    # model = SkipGramModel(n_vocab, n_embedding, context_window_len)
+    model = CBOWModel(n_vocab, n_embedding, context_window_len)
     return model
 
 
@@ -86,11 +98,14 @@ def setup_optimizer(args, model, device):
         - criterion: loss_fn
         - optimizer: torch.optim
     """
-    # ================== TODO: CODE HERE ================== #
+    # ===================================================== #
     # Task: Initialize the loss function for predictions. 
     # Also initialize your optimizer.
     # ===================================================== #
+    # CBOW
     criterion = torch.nn.CrossEntropyLoss().to(device)
+    # Skipgram TODO
+    # criterion = torch.nn.BCEWithLogitsLoss().to(device)
     optimizer = torch.optim.Adam(params=model.parameters())
     return criterion, optimizer
 
@@ -119,7 +134,7 @@ def train_epoch(
 
         # calculate the loss and train accuracy and perform backprop
         # NOTE: feel free to change the parameters to the model forward pass here + outputs
-        pred_logits = model(inputs, labels)
+        pred_logits = model(inputs)
 
         # calculate prediction loss
         loss = criterion(pred_logits.squeeze(), labels)
@@ -134,7 +149,10 @@ def train_epoch(
         epoch_loss += loss.item()
 
         # compute metrics
+        # CBOW
         preds = pred_logits.argmax(-1)
+        # Skipgram TODO
+        # preds = utils.parse_skipgram_preds(pred_logits, model.context_window_len)
         pred_labels.extend(preds.cpu().numpy())
         target_labels.extend(labels.cpu().numpy())
 
@@ -181,7 +199,8 @@ def main(args):
     loaders = {"train": train_loader, "val": val_loader}
 
     # build model
-    model = setup_model(args, n_vocab=args.vocab_size, context_window_len=context_window_len)
+    # Reserve 4 for 4 special tokens (<pad>...)
+    model = setup_model(args, n_vocab=args.vocab_size + 4, context_window_len=context_window_len)
     print(model)
 
     # get optimizer

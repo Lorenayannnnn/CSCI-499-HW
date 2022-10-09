@@ -130,3 +130,6 @@ dmypy.json
 
 .idea/
 .DS_Store
+
+# PA2
+./hw2/books

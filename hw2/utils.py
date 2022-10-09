@@ -1,7 +1,10 @@
 import json
 import gensim
+import numpy
 import tqdm
 import numpy as np
+import torch
+import pandas as pd
 
 
 def read_analogies(analogies_fn):
@@ -48,22 +51,97 @@ def create_train_val_splits(all_sentences: list, prop_train=0.7):
     return train_sentences, val_sentences
 
 
-def get_input_label_data_skip_gram(sentences: list, context_window_len: int, pad_token: int):
+def get_input_label_data_skip_gram(sentences: list, context_window_len: int, pad_token: int, n_vocab: int):
     """
     Parse all sentences and get input and labels (skip_gram)
-    input: 1 token
-    label: context word within the input context window length
+    token -> context word within the input context window length
     """
-    input_data = []
-    labels = []
+    input_data, labels = get_tokens_and_context(sentences, context_window_len, pad_token, n_vocab)
+    return numpy.array(input_data), numpy.array(labels)
 
-    for sentence in sentences:
+
+def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_token: int, n_vocab: int):
+    """
+    Parse all sentences and get input and labels (skip_gram)
+    context word within the input context window length -> token
+    """
+    labels, input_data = get_tokens_and_context(sentences, context_window_len, pad_token, n_vocab)
+    return numpy.array(input_data), numpy.array(labels)
+
+
+def get_tokens_and_context(sentences: list, context_window_len: int, pad_token: int, n_vocab: int):
+    """
+    Get list of tokens and their context words within the input context window length
+    """
+    context_list = []
+    token_list = []
+
+    for (sentence_idx, sentence) in enumerate(sentences):
+        if sentence_idx % 10000 == 0:
+            print(f"Parsed {sentence_idx}/{len(sentences)}")
         for (i, token) in enumerate(sentence):
-            input_data.append(token)
+            if token == 0:
+                break
+            token_list.append(token)
+
+            # context = np.zeros(n_vocab)
+            # for index in range(i - context_window_len, i + context_window_len + 1):
+            #     if index != i:
+            #         context[get_token(sentence, index, pad_token)] = 1
+
+            # TODO
             context = []
             for index in range(i - context_window_len, i + context_window_len + 1):
                 if index != i:
                     context.append(get_token(sentence, index, pad_token))
-            labels.append(context)
+            context_list.append(context)
 
-    return input_data, labels
+    return token_list, context_list
+
+def get_train_val_dataset():
+    train_df = pd.read_pickle("train.pkl")
+    val_df = pd.read_pickle("val.pkl")
+
+    # Read in data from local pickle file
+    x_train = train_df["input_data"].values.tolist()
+    y_train = train_df["labels"].values.tolist()
+    x_val = val_df["input_data"].values.tolist()
+    y_val = val_df["labels"].values.tolist()
+
+    return x_train, y_train, x_val, y_val
+
+
+def get_device(force_cpu, status=True):
+    # Reference: from hw1
+
+    # if not force_cpu and torch.backends.mps.is_available():
+    # 	device = torch.device('mps')
+    # 	if status:
+    # 		print("Using MPS")
+    # elif not force_cpu and torch.cuda.is_available():
+    if not force_cpu and torch.cuda.is_available():
+        device = torch.device("cuda")
+        if status:
+            print("Using CUDA")
+    else:
+        device = torch.device("cpu")
+        if status:
+            print("Using CPU")
+    return device
+
+
+# TODO
+def parse_skipgram_preds(prediction, context_window_len: int):
+    index_list = [np.argpartition(indexes.detach().numpy(), -context_window_len*2)[-context_window_len * 2::] for indexes in prediction]
+    parsed_preds = []
+    for i, a in enumerate(prediction):
+        result = np.zeros(len(a))
+        for index in index_list[i]:
+            result[index] = 1
+        parsed_preds.append(result)
+
+    return torch.tensor(numpy.array(parsed_preds))
+    # index_list = np.array([np.argpartition(indexes.detach().numpy(), -context_window_len * 2)[-context_window_len * 2::] for
+    #               indexes in prediction])
+    # index_list.sort()
+    # return index_list
