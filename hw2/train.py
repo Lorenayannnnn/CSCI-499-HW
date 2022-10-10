@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import numpy as np
 import tqdm
 import torch
 from sklearn.metrics import accuracy_score
@@ -253,10 +254,9 @@ def main(args):
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
 
-    # TODO save to file
     i2v = []
     for i in range(args.vocab_size + 4):
-        i2v[i] = model.embedding_layer(torch.tensor(i))
+        i2v.append(model.embedding_layer(torch.tensor(i)))
 
     # save word vectors
     word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
@@ -269,7 +269,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output_dir", type=str, default="output", help="where to save training outputs")
+    parser.add_argument("--outputs_dir", type=str, default="output", help="where to save training outputs")
     parser.add_argument("--data_dir", type=str, help="where the book dataset is stored")
     parser.add_argument(
         "--downstream_eval",
@@ -321,4 +321,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args)
     # model = torch.load("output/cbow_model.ckpt")
-    # print(model.embedding_layer(torch.tensor(3003)))
+    # i2v = []
+    # for i in range(args.vocab_size + 4):
+    #     i2v.append(model.embedding_layer(torch.tensor(i)))
+    #
+    # # save word vectors
+    # word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
+    # print("saving word vec to ", word_vec_file)
+    # utils.save_word2vec_format(word_vec_file, model, i2v)
