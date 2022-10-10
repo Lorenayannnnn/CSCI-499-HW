@@ -5,6 +5,7 @@ import tqdm
 import numpy as np
 import torch
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def read_analogies(analogies_fn):
@@ -60,8 +61,8 @@ def get_input_label_data_skip_gram(sentences: list, context_window_len: int, pad
     token_list = []
 
     for (sentence_idx, sentence) in enumerate(sentences):
-        if sentence_idx % 10000 == 0:
-            print(f"Parsed {sentence_idx}/{len(sentences)}")
+        # if sentence_idx % 10000 == 0:
+        #     print(f"Parsed {sentence_idx}/{len(sentences)}")
         for (i, token) in enumerate(sentence):
             if token == 0:
                 break
@@ -86,8 +87,8 @@ def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_toke
     tokens = []
 
     for (sentence_idx, sentence) in enumerate(sentences):
-        if sentence_idx % 10000 == 0:
-            print(f"Parsed {sentence_idx}/{len(sentences)}")
+        # if sentence_idx % 10000 == 0:
+        #     print(f"Parsed {sentence_idx}/{len(sentences)}")
         for (i, token) in enumerate(sentence):
             if i >= lens[i][0]:
                 break
@@ -152,3 +153,17 @@ def parse_skipgram_preds(prediction, context_window_len: int):
     #               indexes in prediction])
     # index_list.sort()
     # return index_list
+
+
+def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_title: str, is_val: bool):
+    x_axis_data = [i for i in range(1, args.num_epochs + 1, args.val_every)] if is_val else [i for i in range(1, args.num_epochs + 1)]
+
+    figure, ax = plt.subplots()
+    ax.plot(x_axis_data, y_axis_data)
+    ax.set_title(graph_title)
+    ax.set_xlabel("Num of epochs")
+    ax.set_ylim(bottom=0)
+
+    figure.show()
+
+    figure.savefig(output_file_name)

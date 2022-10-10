@@ -1,7 +1,6 @@
 import argparse
 import os
 
-import numpy as np
 import tqdm
 import torch
 from sklearn.metrics import accuracy_score
@@ -88,8 +87,8 @@ def setup_model(args, n_vocab: int, context_window_len: int):
     # TODO
     n_embedding = 128
     # model = SkipGramModel(n_vocab, n_embedding, context_window_len)
-    # model = CBOWModel(n_vocab, n_embedding, context_window_len)
-    model = torch.load("./output/cbow_model.ckpt")
+    model = CBOWModel(n_vocab, n_embedding, context_window_len)
+    # model = torch.load("./output/cbow_model.ckpt")
     return model
 
 
@@ -207,6 +206,11 @@ def main(args):
     # get optimizer
     criterion, optimizer = setup_optimizer(args, model, device)
 
+    all_train_acc = []
+    all_train_loss = []
+    all_val_acc = []
+    all_val_loss = []
+
     for epoch in range(args.num_epochs):
         # train model for a single epoch
         print(f"Epoch {epoch}")
@@ -220,6 +224,8 @@ def main(args):
         )
 
         print(f"train loss : {train_loss} | train acc: {train_acc}")
+        all_train_acc.append(train_acc)
+        all_train_loss.append(train_loss)
 
         if epoch % args.val_every == 0:
             val_loss, val_acc = validate(
@@ -231,6 +237,8 @@ def main(args):
                 device,
             )
             print(f"val loss : {val_loss} | val acc: {val_acc}")
+            all_val_acc.append(val_acc)
+            all_val_loss.append(val_loss)
 
             # ======================= NOTE ======================== #
             # Saving the word vectors to disk and running the eval
@@ -250,15 +258,22 @@ def main(args):
             # downstream_validation(word_vec_file, external_val_analogies)
 
         if epoch != 0 and epoch % args.save_every == 0:
-            ckpt_file = os.path.join(args.output_dir, "cbow_model.ckpt")
+            ckpt_file = os.path.join(args.outputs_dir, "cbow_model.ckpt")
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
 
+    # Output training and validation accuracy and loss graphs
+    # CBOW
+    utils.output_result_figure(args, "output_graphs/training_loss(CBOW).png", all_train_loss, "Training Loss", False)
+    utils.output_result_figure(args, "output_graphs/training_acc(CBOW).png", all_train_acc, "Training Accuracy", False)
+    utils.output_result_figure(args, "output_graphs/validation_loss(CBOW).png", all_val_loss, "Validation Loss", True)
+    utils.output_result_figure(args, "output_graphs/validation_acc(CBOW).png", all_val_loss, "Validation Accuracy", True)
+
+    # save word vectors
     i2v = []
     for i in range(args.vocab_size + 4):
         i2v.append(model.embedding_layer(torch.tensor(i)))
 
-    # save word vectors
     word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
     print("saving word vec to ", word_vec_file)
     utils.save_word2vec_format(word_vec_file, model, i2v)
@@ -329,3 +344,5 @@ if __name__ == "__main__":
     # word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
     # print("saving word vec to ", word_vec_file)
     # utils.save_word2vec_format(word_vec_file, model, i2v)
+    # external_val_analogies = utils.read_analogies(args.analogies_fn)
+    # downstream_validation(word_vec_file, external_val_analogies)

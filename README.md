@@ -6,3 +6,4 @@
 
 ### Directory
 - [HW1 (LSTM & ALFRED Instruction Set)](hw1/)
+- [HW2 (CBOW & Skipgram Word Embedding)](hw2/)
