@@ -56,23 +56,6 @@ def get_input_label_data_skip_gram(sentences: list, context_window_len: int, pad
     Parse all sentences and get input and labels (skip_gram)
     token -> context word within the input context window length
     """
-    input_data, labels = get_tokens_and_context(sentences, context_window_len, pad_token, n_vocab)
-    return numpy.array(input_data), numpy.array(labels)
-
-
-def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_token: int, n_vocab: int):
-    """
-    Parse all sentences and get input and labels (skip_gram)
-    context word within the input context window length -> token
-    """
-    labels, input_data = get_tokens_and_context(sentences, context_window_len, pad_token, n_vocab)
-    return numpy.array(input_data), numpy.array(labels)
-
-
-def get_tokens_and_context(sentences: list, context_window_len: int, pad_token: int, n_vocab: int):
-    """
-    Get list of tokens and their context words within the input context window length
-    """
     context_list = []
     token_list = []
 
@@ -83,20 +66,44 @@ def get_tokens_and_context(sentences: list, context_window_len: int, pad_token: 
             if token == 0:
                 break
             token_list.append(token)
+            context = [0] * n_vocab
+            bound = int(context_window_len / 2)
 
-            # context = np.zeros(n_vocab)
-            # for index in range(i - context_window_len, i + context_window_len + 1):
-            #     if index != i:
-            #         context[get_token(sentence, index, pad_token)] = 1
+            for index in range(i - bound, i + bound + 1):
+                if index != i:
+                    context[get_token(sentence, index, pad_token)] = 1
+            context_list.append(context)
 
-            # TODO
+    return numpy.array(token_list), numpy.array(context_list)
+
+
+def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_token: int, lens):
+    """
+    Parse all sentences and get input and labels (skip_gram)
+    context -> token
+    """
+    context_list = []
+    tokens = []
+
+    for (sentence_idx, sentence) in enumerate(sentences):
+        if sentence_idx % 10000 == 0:
+            print(f"Parsed {sentence_idx}/{len(sentences)}")
+        for (i, token) in enumerate(sentence):
+            if i >= lens[i][0]:
+                break
+            # elif token == 3:
+            #     continue
+            tokens.append(token)
+
             context = []
-            for index in range(i - context_window_len, i + context_window_len + 1):
+            bound = int(context_window_len / 2)
+            for index in range(i - bound, i + bound + 1):
                 if index != i:
                     context.append(get_token(sentence, index, pad_token))
             context_list.append(context)
 
-    return token_list, context_list
+    return numpy.array(context_list), numpy.array(tokens)
+
 
 def get_train_val_dataset():
     train_df = pd.read_pickle("train.pkl")
@@ -132,7 +139,7 @@ def get_device(force_cpu, status=True):
 
 # TODO
 def parse_skipgram_preds(prediction, context_window_len: int):
-    index_list = [np.argpartition(indexes.detach().numpy(), -context_window_len*2)[-context_window_len * 2::] for indexes in prediction]
+    index_list = [np.argpartition(indexes.detach().numpy(), -context_window_len)[-context_window_len::] for indexes in prediction]
     parsed_preds = []
     for i, a in enumerate(prediction):
         result = np.zeros(len(a))
@@ -141,7 +148,7 @@ def parse_skipgram_preds(prediction, context_window_len: int):
         parsed_preds.append(result)
 
     return torch.tensor(numpy.array(parsed_preds))
-    # index_list = np.array([np.argpartition(indexes.detach().numpy(), -context_window_len * 2)[-context_window_len * 2::] for
+    # index_list = np.array([np.argpartition(indexes.detach().numpy(), -context_window_len)[-context_window_len::] for
     #               indexes in prediction])
     # index_list.sort()
     # return index_list

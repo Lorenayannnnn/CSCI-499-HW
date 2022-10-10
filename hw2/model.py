@@ -1,4 +1,4 @@
-import numpy as np
+
 import torch
 from torch import nn
 
@@ -39,4 +39,5 @@ class CBOWModel(nn.Module):
     def forward(self, input_token):
         embedding_out = torch.sum(self.embedding_layer(input_token), dim=1)
         fc_out = self.fc(embedding_out)
+
         return fc_out

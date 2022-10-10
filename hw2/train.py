@@ -1,5 +1,6 @@
 import argparse
 import os
+
 import tqdm
 import torch
 from sklearn.metrics import accuracy_score
@@ -59,10 +60,8 @@ def setup_dataloader(args, context_window_len):
     # Use the padding token if the context word does not exist (e.g.: 2 words before the first token in a sentence)
 
     # CBOW
-    train_input, train_labels = utils.get_input_label_data_cbow(train_sentences, context_window_len, pad_token,
-                                                                     args.vocab_size + 4)
-    val_input, val_labels = utils.get_input_label_data_cbow(val_sentences, context_window_len, pad_token,
-                                                                 args.vocab_size + 4)
+    train_input, train_labels = utils.get_input_label_data_cbow(train_sentences, context_window_len, pad_token, lens)
+    val_input, val_labels = utils.get_input_label_data_cbow(val_sentences, context_window_len, pad_token, lens)
 
     # Skipgram TODO
     # train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token, args.vocab_size+4)
@@ -85,10 +84,11 @@ def setup_model(args, n_vocab: int, context_window_len: int):
     # ===================================================== #
     # Task: Initialize your CBOW or Skip-Gram model.
     # ===================================================== #
-    # TODO setup model
+    # TODO
     n_embedding = 128
     # model = SkipGramModel(n_vocab, n_embedding, context_window_len)
-    model = CBOWModel(n_vocab, n_embedding, context_window_len)
+    # model = CBOWModel(n_vocab, n_embedding, context_window_len)
+    model = torch.load("./output/cbow_model.ckpt")
     return model
 
 
@@ -194,7 +194,7 @@ def main(args):
         return
 
     # get dataloaders
-    context_window_len = 2      # context window length for skipgram model output
+    context_window_len = 4      # context window length for skipgram model output
     train_loader, val_loader = setup_dataloader(args, context_window_len)
     loaders = {"train": train_loader, "val": val_loader}
 
@@ -240,24 +240,36 @@ def main(args):
             # have a word vector file and some results.
             # ===================================================== #
 
-            # save word vectors
-            word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
-            print("saving word vec to ", word_vec_file)
-            utils.save_word2vec_format(word_vec_file, model, i2v)
+            # # save word vectors
+            # word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
+            # print("saving word vec to ", word_vec_file)
+            # utils.save_word2vec_format(word_vec_file, model, i2v)
+            #
+            # # evaluate learned embeddings on a downstream task
+            # downstream_validation(word_vec_file, external_val_analogies)
 
-            # evaluate learned embeddings on a downstream task
-            downstream_validation(word_vec_file, external_val_analogies)
-
-
-        if epoch % args.save_every == 0:
-            ckpt_file = os.path.join(args.output_dir, "model.ckpt")
+        if epoch != 0 and epoch % args.save_every == 0:
+            ckpt_file = os.path.join(args.output_dir, "cbow_model.ckpt")
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
+
+    # TODO save to file
+    i2v = []
+    for i in range(args.vocab_size + 4):
+        i2v[i] = model.embedding_layer(torch.tensor(i))
+
+    # save word vectors
+    word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
+    print("saving word vec to ", word_vec_file)
+    utils.save_word2vec_format(word_vec_file, model, i2v)
+
+    # evaluate learned embeddings on a downstream task
+    downstream_validation(word_vec_file, external_val_analogies)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output_dir", type=str, help="where to save training outputs")
+    parser.add_argument("--output_dir", type=str, default="output", help="where to save training outputs")
     parser.add_argument("--data_dir", type=str, help="where the book dataset is stored")
     parser.add_argument(
         "--downstream_eval",
@@ -308,3 +320,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     main(args)
+    # model = torch.load("output/cbow_model.ckpt")
+    # print(model.embedding_layer(torch.tensor(3003)))
