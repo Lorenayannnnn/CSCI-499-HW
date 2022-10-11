@@ -64,8 +64,8 @@ def setup_dataloader(args, context_window_len):
     val_input, val_labels = utils.get_input_label_data_cbow(val_sentences, context_window_len, pad_token, lens)
 
     # Skipgram TODO
-    # train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token, args.vocab_size+4)
-    # val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token, args.vocab_size+4)
+    # train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token, args.vocab_size)
+    # val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token, args.vocab_size)
 
     train_dataset = TensorDataset(torch.from_numpy(train_input), torch.from_numpy(train_labels))
     val_dataset = TensorDataset(torch.from_numpy(val_input), torch.from_numpy(val_labels))
@@ -73,7 +73,7 @@ def setup_dataloader(args, context_window_len):
     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(val_dataset, shuffle=False, batch_size=args.batch_size)
     print("INFO: Finished parsing sentences to train and validation dataset")
-    return train_loader, val_loader
+    return train_loader, val_loader, index_to_vocab
 
 
 def setup_model(args, n_vocab: int, context_window_len: int):
@@ -85,10 +85,9 @@ def setup_model(args, n_vocab: int, context_window_len: int):
     # Task: Initialize your CBOW or Skip-Gram model.
     # ===================================================== #
     # TODO
-    n_embedding = 128
+    n_embedding = 100
     # model = SkipGramModel(n_vocab, n_embedding, context_window_len)
     model = CBOWModel(n_vocab, n_embedding, context_window_len)
-    # model = torch.load("./output/cbow_model.ckpt")
     return model
 
 
@@ -195,12 +194,12 @@ def main(args):
 
     # get dataloaders
     context_window_len = 4      # context window length for skipgram model output
-    train_loader, val_loader = setup_dataloader(args, context_window_len)
+    train_loader, val_loader, index_to_vocab = setup_dataloader(args, context_window_len)
     loaders = {"train": train_loader, "val": val_loader}
 
     # build model
     # Reserve 4 for 4 special tokens (<pad>...)
-    model = setup_model(args, n_vocab=args.vocab_size + 4, context_window_len=context_window_len)
+    model = setup_model(args, n_vocab=args.vocab_size, context_window_len=context_window_len)
     print(model)
 
     # get optimizer
@@ -252,7 +251,7 @@ def main(args):
             # # save word vectors
             # word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
             # print("saving word vec to ", word_vec_file)
-            # utils.save_word2vec_format(word_vec_file, model, i2v)
+            # utils.save_word2vec_format(word_vec_file, model, index_to_vocab)
             #
             # # evaluate learned embeddings on a downstream task
             # downstream_validation(word_vec_file, external_val_analogies)
@@ -270,13 +269,9 @@ def main(args):
     utils.output_result_figure(args, "output_graphs/validation_acc(CBOW).png", all_val_loss, "Validation Accuracy", True)
 
     # save word vectors
-    i2v = []
-    for i in range(args.vocab_size + 4):
-        i2v.append(model.embedding_layer(torch.tensor(i)))
-
     word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
     print("saving word vec to ", word_vec_file)
-    utils.save_word2vec_format(word_vec_file, model, i2v)
+    utils.save_word2vec_format(word_vec_file, model, index_to_vocab)
 
     # evaluate learned embeddings on a downstream task
     downstream_validation(word_vec_file, external_val_analogies)
@@ -335,14 +330,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     main(args)
+
     # model = torch.load("output/cbow_model.ckpt")
-    # i2v = []
-    # for i in range(args.vocab_size + 4):
-    #     i2v.append(model.embedding_layer(torch.tensor(i)))
     #
-    # # save word vectors
-    # word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
-    # print("saving word vec to ", word_vec_file)
-    # utils.save_word2vec_format(word_vec_file, model, i2v)
+    # # Get index to vocab
+    # i2v = utils.load_index_to_vocab()
+    # word_to_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
+    # print("saving word vec to ", word_to_vec_file)
+    # utils.save_word2vec_format(word_to_vec_file, model, i2v)
+    #
+    # # Downstream validation
     # external_val_analogies = utils.read_analogies(args.analogies_fn)
-    # downstream_validation(word_vec_file, external_val_analogies)
+    # downstream_validation(word_to_vec_file, external_val_analogies)

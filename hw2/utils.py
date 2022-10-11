@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt
+import data_utils
+import os
 
 
 def read_analogies(analogies_fn):
@@ -87,27 +89,27 @@ def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_toke
 
     for (sentence_index, sentence) in enumerate(sentences):
         # 1. Start from 1st token
-        for (token_index, token) in enumerate(sentence):
-            if token_index >= lens[sentence_index][0]:
-                break
-            tokens.append(token)
-
-            context = []
-            for bound_index in range(token_index - bound, token_index + bound + 1):
-                if bound_index != token_index:
-                    context.append(get_token(sentence, bound_index, pad_token))
-            context_list.append(context)
+        # for (token_index, token) in enumerate(sentence):
+        #     if token_index >= lens[sentence_index][0]:
+        #         break
+        #     tokens.append(token)
+        #
+        #     context = []
+        #     for bound_index in range(token_index - bound, token_index + bound + 1):
+        #         if bound_index != token_index:
+        #             context.append(get_token(sentence, bound_index, pad_token))
+        #     context_list.append(context)
 
         # 2. Start from token with a valid context window
-        # for i in range(bound, len(sentence) - bound):
-        #     if i >= lens[sentence_index][0]:
-        #         break
-        #     tokens.append(sentence[i])
-        #     context = []
-        #     for index in range(i - bound, i + bound + 1):
-        #         if index != i:
-        #             context.append(get_token(sentence, index, pad_token))
-        #     context_list.append(context)
+        for i in range(bound, len(sentence) - bound):
+            if i >= lens[sentence_index][0]:
+                break
+            tokens.append(sentence[i])
+            context = []
+            for index in range(i - bound, i + bound + 1):
+                if index != i:
+                    context.append(get_token(sentence, index, pad_token))
+            context_list.append(context)
 
     return numpy.array(context_list), numpy.array(tokens)
 
@@ -127,12 +129,6 @@ def get_train_val_dataset():
 
 def get_device(force_cpu, status=True):
     # Reference: from hw1
-
-    # if not force_cpu and torch.backends.mps.is_available():
-    # 	device = torch.device('mps')
-    # 	if status:
-    # 		print("Using MPS")
-    # elif not force_cpu and torch.cuda.is_available():
     if not force_cpu and torch.cuda.is_available():
         device = torch.device("cuda")
         if status:
@@ -173,3 +169,17 @@ def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_t
     figure.show()
 
     figure.savefig(output_file_name)
+
+
+def save_index_to_vocab(arr: list):
+    with open('output/index_to_vocab.txt', 'w') as convert_file:
+        convert_file.write(json.dumps(arr))
+
+
+def load_index_to_vocab():
+    with open('output/index_to_vocab.txt') as f:
+        data = f.read()
+    index_to_vocab = json.loads(data)
+    index_to_vocab = {int(k): v for k, v in index_to_vocab.items()}
+
+    return index_to_vocab

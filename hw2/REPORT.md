@@ -6,7 +6,7 @@ CBOW model is implemented.
 - Validate every 1 epoch
 
 ### Encoding
-- Word-level tokenizer with 3000 words in dictionary and 4 other special tokens (\<pad\>, \<start\>, \<end\>, and \<unk\>)
+- Word-level tokenizer with 3000 words in dictionary (including 4 other special tokens \<pad\>, \<start\>, \<end\>, and \<unk\>)
 #### CBOW
 - Input: context window length of 4 is used. 2 words before a token is parsed as the input of that token. 2 different processings are experimented here:
   1. Parse context starting from the very 1st token and ending at the very last token within the sentence length (e.g.: 2 previous context words of the 1st token will be padding)
@@ -19,18 +19,18 @@ CBOW model is implemented.
 ### Hyperparameters
 | Parameter | Value | Description |
 |:---------:|:-----:|:-----------:|
-| n_vocab | 3000+4 | number of vocabulary in the dictionary
-| n_embedding | 128 | dimension of embedding layer (chosen arbitrarily)
+| n_vocab | 3000 | number of vocabulary in the dictionary
+| n_embedding | 100 | dimension of embedding layer (chosen arbitrarily)
 | context_window_len | 4 | total number of tokens used as the context of the target token
 
 ### Model
 #### CBOW
-- Embedding layer with dimension of 128
+- Embedding layer with dimension of 100
 - 1 fully connected layer for predicting token (out_feature=n_vocab)
 - Forward: embedding vectors of 4 context words are first summed up and then passed into the fully connected layer to predict the final token
 
 #### Skipgram
-- Embedding layer with dimension of 128
+- Embedding layer with dimension of 100
 - 1 fully connected layer for predicting the context (out_feature=n_vocab)
 - Forward: the input token is first embedded and then is passed into the fully connected layer to predict its context
 
@@ -62,19 +62,31 @@ Used BCEWithLogitsLoss for multi-label classification
 ## Performance
 ### CBOW
 #### Parse context starting from the very 1st token and ending at the very last token
-![CBOW_train_acc](output_graphs/training_acc(CBOW).png)
-![CBOW_train_loss](output_graphs/training_loss(CBOW).png)
-![CBOW_val_acc](output_graphs/validation_acc(CBOW).png)
-![CBOW_val_loss](output_graphs/validation_loss(CBOW).png)
+![CBOW_train_acc](output_graphs/training_acc(CBOW_with_all_tokens).png)
+![CBOW_train_loss](output_graphs/training_loss(CBOW_with_all_tokens).png)
+![CBOW_val_acc](output_graphs/validation_acc(CBOW_with_all_tokens).png)
+![CBOW_val_loss](output_graphs/validation_loss(CBOW_with_all_tokens).png)
 
 |                   |   Loss   | Accuracy |
 |:-----------------:|:--------:|:--------:|
 |     Training      |  1.6403  |  0.7030  | 
-|    Validation     |  1.2369  |  0.7813  |
+|    Validation     |  1.2243  |  0.7829  |
 
-- Comments: TODO
+#### Start from the token that has a valid context window
+![CBOW_train_acc](output_graphs/training_acc(CBOW_with_valid_window).png)
+![CBOW_train_loss](output_graphs/training_loss(CBOW_with_valid_window).png)
+![CBOW_val_acc](output_graphs/validation_acc(CBOW_with_valid_window).png)
+![CBOW_val_loss](output_graphs/validation_loss(CBOW_with_valid_window).png)
 
-#### Start from the token that has a valid context window TODO
+|                   |   Loss   | Accuracy |
+|:-----------------:|:--------:|:--------:|
+|     Training      |  1.6312  |  0.7140  | 
+|    Validation     |  1.2354  |  0.7892  |
+
+Comments: 
+As can be seen from above, extracting tokens with valid context windows (i.e. ignore words that do not have enough context words before/after them) increases models' performance (by 1%).
+This is reasonable since there will be much fewer padding tokens in the input data, and most 2 words, at the beginning of a sentence for instance, are usually stop words, which have less influence on other relatively more important words. 
+
 
 #### In Vitro TODO
 #### In Vivo TODO
