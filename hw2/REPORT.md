@@ -2,7 +2,7 @@
 CBOW model is implemented.
 
 ## Implementation Choices
-- n_epochs = 10
+- n_epochs = 10 (due to CPU limitation :( )
 - Validate every 1 epoch
 
 ### Encoding
@@ -45,22 +45,32 @@ Used BCEWithLogitsLoss for multi-label classification
 
 
 ## Released Code Analysis
-### In Vitro TODO
-|   Task   | Metric |
-|:--------:|:--------:|
-|    |    | 
-|    |    |
-- Assumptions/Simplifications (what might go "wrong", over/under-estimate model performance)
+### Tasks
+- In vitro: tested on validation dataset. For instance, for CBOW, the model is still tested on its ability of predicting the target word based on input context. 
+- In vivo: Several tasks are involved for in vivo evaluation. All tasks are broken down into 2 categories: semantic and syntactic. 
+  - Relations of semantic tasks: capitals, binary gender, antonym, member, hypernomy, similar… 
+  - Relations of syntatic tasks: adj and adv, comparative, superlative, plural nouns...
 
-### In Vivo TODO
-|   Task   | Metric |
-|:--------:|:--------:|
-|    |    | 
-|    |    |
-- Assumptions/Simplifications (what might go "wrong", over/under-estimate model performance)
+### Metrics
+#### In vitro
+For accuracy, we select the token with the highest probability and then check if it matches with the actual token. For loss, cross entropy loss is used here. 
+#### In vivo 
+- For one relation of a task, 1 or more entries are included. For each entry, there are 2 pairs of words that follow the declared relation. 
+- Let the 4 words be A, B, C, and D. A and B follows the stated relation, so as C and D. 
+- The model is evaluated on whether the learned word embedding space satisfies the equality A-B = C-D
+- The evaluation util function first uses <code>gensim.models.KeyedVectors</code> to store and calculate C + B - A. Then, top 1000 words are sampled from the space based on the result.
+- 3 values are calculated:
+  - Exact: top-1 choice matches with the actual word
+  - MRR: if top-1 choice does not match the actual word, then the score is calculated based on the predicted word's ranking (1/word's ranking)
+  - MR: inverse of MRR
+
+
+### Assumptions/Simplifications (what might go "wrong", over/under-estimate model performance)
+- The first potential issue that I noticed is that the number of entries for each relation is not well-balanced. For instance, for semantic tasks, the "hypernomy" relation has 542 entries, which is way more than rest of the relations (detail can be seen in graphs in the _**Performance**_ section). The out-of-distribution issue may cause the metric to underestimate the learned word embedding's ability of handling other relations.
+- TODO
 
 ## Performance
-### CBOW
+### CBOW: In Vivo
 #### Parse context starting from the very 1st token and ending at the very last token
 ![CBOW_train_acc](output_graphs/training_acc(CBOW_with_all_tokens).png)
 ![CBOW_train_loss](output_graphs/training_loss(CBOW_with_all_tokens).png)
@@ -84,12 +94,17 @@ Used BCEWithLogitsLoss for multi-label classification
 |    Validation     |  1.2354  |  0.7892  |
 
 Comments: 
-As can be seen from above, extracting tokens with valid context windows (i.e. ignore words that do not have enough context words before/after them) increases models' performance (by 1%).
-This is reasonable since there will be much fewer padding tokens in the input data, and most 2 words, at the beginning of a sentence for instance, are usually stop words, which have less influence on other relatively more important words. 
+- As can be seen from above, extracting tokens with valid context windows (i.e. ignore words that do not have enough context words before/after them) increases models' performance (by 1%).
+This is reasonable since there will be much fewer padding tokens in the input data, and most 2 words, at the beginning of a sentence for instance, are usually stop words, which have less influence on other relatively more important words.
+- Noted: the validation and training loss are still both decreasing, and validation and training accuracy are still both increasing at the end of 10 epochs, so maybe training the model with more epochs can further increase model's performance.
 
+### CBOW: In Vivo
+#### Semantics
+![CBOW_in_vivo_sem](output_graphs/in_vivo_semantics(CBOW).png)
+#### Syntax
+![CBOW_in_vivo_syn](output_graphs/in_vivo_syntactic(CBOW).png)
 
-#### In Vitro TODO
-#### In Vivo TODO
+Comments: as can be seen from above, the model performs better at capturing syntactic information than semantics, which is reasonable since only 4 words surrounding a target word are used as the word's context, so it's difficult for the model to learn global semantic relations. 
 
 ### Skipgram TODO
 #### In Vitro TODO
