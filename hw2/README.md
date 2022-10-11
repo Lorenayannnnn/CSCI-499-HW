@@ -30,5 +30,7 @@ python3 train.py \
 python train.py \
     --analogies_fn analogies_v3000_1309.json \
     --data_dir books/ \
-    --downstream_eval
+    --downstream_eval \
+    --word_vector_fn learned_word_vectors_len_4.txt \
+    --outputs_dir output/
 ```
