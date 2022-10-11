@@ -18,15 +18,13 @@ bash get_books.sh
 
 ### Run the program
 ```
-cd hw1/
+cd hw2/
 
 - Training:
 python3 train.py \
     --analogies_fn analogies_v3000_1309.json \
     --data_dir books/ \
-    --num_epochs 10 \
-    --val_every 1 \
-    --word_vector_fn learned_word_vectors(CBOW).txt
+    --word_vector_fn learned_word_vectors.txt
 
 - Evaluation:
 python train.py \
