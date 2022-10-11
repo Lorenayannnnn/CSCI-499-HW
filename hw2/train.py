@@ -63,7 +63,7 @@ def setup_dataloader(args, context_window_len):
     train_input, train_labels = utils.get_input_label_data_cbow(train_sentences, context_window_len, pad_token, lens)
     val_input, val_labels = utils.get_input_label_data_cbow(val_sentences, context_window_len, pad_token, lens)
 
-    # Skipgram TODO
+    # Skipgram TODO skipgram input data
     # train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token, args.vocab_size)
     # val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token, args.vocab_size)
 
@@ -84,7 +84,7 @@ def setup_model(args, n_vocab: int, context_window_len: int):
     # ===================================================== #
     # Task: Initialize your CBOW or Skip-Gram model.
     # ===================================================== #
-    # TODO
+    # TODO skipgram model
     n_embedding = 100
     # model = SkipGramModel(n_vocab, n_embedding, context_window_len)
     model = CBOWModel(n_vocab, n_embedding, context_window_len)
@@ -103,7 +103,7 @@ def setup_optimizer(args, model, device):
     # ===================================================== #
     # CBOW
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    # Skipgram TODO
+    # Skipgram TODO loss criterion
     # criterion = torch.nn.BCEWithLogitsLoss().to(device)
     optimizer = torch.optim.Adam(params=model.parameters())
     return criterion, optimizer
@@ -150,7 +150,7 @@ def train_epoch(
         # compute metrics
         # CBOW
         preds = pred_logits.argmax(-1)
-        # Skipgram TODO
+        # Skipgram TODO get preds for skipgram
         # preds = utils.parse_skipgram_preds(pred_logits, model.context_window_len)
         pred_labels.extend(preds.cpu().numpy())
         target_labels.extend(labels.cpu().numpy())
@@ -193,7 +193,7 @@ def main(args):
         return
 
     # get dataloaders
-    context_window_len = 4      # context window length for skipgram model output
+    context_window_len = 8      # context window length
     train_loader, val_loader, index_to_vocab = setup_dataloader(args, context_window_len)
     loaders = {"train": train_loader, "val": val_loader}
 
@@ -257,16 +257,17 @@ def main(args):
             # downstream_validation(word_vec_file, external_val_analogies)
 
         if epoch != 0 and epoch % args.save_every == 0:
-            ckpt_file = os.path.join(args.outputs_dir, "cbow_model.ckpt")
+            # TODO output filename of model checkpoint
+            ckpt_file = os.path.join(args.outputs_dir, "cbow_model_len_8.ckpt")
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
 
     # Output training and validation accuracy and loss graphs
-    # CBOW
-    utils.output_result_figure(args, "output_graphs/training_loss(CBOW).png", all_train_loss, "Training Loss", False)
-    utils.output_result_figure(args, "output_graphs/training_acc(CBOW).png", all_train_acc, "Training Accuracy", False)
-    utils.output_result_figure(args, "output_graphs/validation_loss(CBOW).png", all_val_loss, "Validation Loss", True)
-    utils.output_result_figure(args, "output_graphs/validation_acc(CBOW).png", all_val_loss, "Validation Accuracy", True)
+    # CBOW TODO output filename of result images
+    utils.output_result_figure(args, "output_graphs/training_loss(CBOW_larger_window).png", all_train_loss, "Training Loss", False)
+    utils.output_result_figure(args, "output_graphs/training_acc(CBOW_larger_window).png", all_train_acc, "Training Accuracy", False)
+    utils.output_result_figure(args, "output_graphs/validation_loss(CBOW_larger_window).png", all_val_loss, "Validation Loss", True)
+    utils.output_result_figure(args, "output_graphs/validation_acc(CBOW_larger_window).png", all_val_loss, "Validation Accuracy", True)
 
     # save word vectors
     word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
@@ -331,7 +332,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args)
 
-    # model = torch.load("output/cbow_model.ckpt")
+    # model = torch.load("output/cbow_model_len_8.ckpt")
     #
     # # Get index to vocab
     # i2v = utils.load_index_to_vocab()

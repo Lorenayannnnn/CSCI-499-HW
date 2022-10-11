@@ -101,9 +101,7 @@ def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_toke
         #     context_list.append(context)
 
         # 2. Start from token with a valid context window
-        for i in range(bound, len(sentence) - bound):
-            if i >= lens[sentence_index][0]:
-                break
+        for i in range(bound, lens[sentence_index][0] - bound):
             tokens.append(sentence[i])
             context = []
             for index in range(i - bound, i + bound + 1):
