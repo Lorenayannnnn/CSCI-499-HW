@@ -102,6 +102,7 @@ For accuracy, we select the token with the highest probability and then check if
 |:-----------------:|:--------:|:--------:|
 |     Training      |  1.6312  |  0.7140  | 
 |    Validation     |  1.2354  |  0.7892  |
+
 Comments: 
 - As can be seen from above, extracting tokens with valid context windows (i.e. ignore words that do not have enough context words before/after them) increases models' performance (by 1%).
 This is reasonable since there will be much fewer padding tokens in the input data, and most 2 words, at the beginning of a sentence for instance, are usually stop words, which have less influence on other relatively more important words.
