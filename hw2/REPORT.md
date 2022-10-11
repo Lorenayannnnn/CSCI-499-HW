@@ -8,7 +8,9 @@ CBOW model is implemented.
 ### Encoding
 - Word-level tokenizer with 3000 words in dictionary and 4 other special tokens (\<pad\>, \<start\>, \<end\>, and \<unk\>)
 #### CBOW
-- Input: context window length of 4 is used. 2 words before a token is parsed as the input of that token
+- Input: context window length of 4 is used. 2 words before a token is parsed as the input of that token. 2 different processings are experimented here:
+  1. Parse context starting from the very 1st token and ending at the very last token within the sentence length (e.g.: 2 previous context words of the 1st token will be padding)
+  2. Start from the token that has a valid context window (e.g.: if the context window length is 4, then the first token that will be processed is the 3rd token in the sentence)
 - Output: target token
 #### Skipgram
 - Input: individual tokens within sentences
@@ -59,6 +61,7 @@ Used BCEWithLogitsLoss for multi-label classification
 
 ## Performance
 ### CBOW
+#### Parse context starting from the very 1st token and ending at the very last token
 ![CBOW_train_acc](output_graphs/training_acc(CBOW).png)
 ![CBOW_train_loss](output_graphs/training_loss(CBOW).png)
 ![CBOW_val_acc](output_graphs/validation_acc(CBOW).png)
@@ -66,10 +69,12 @@ Used BCEWithLogitsLoss for multi-label classification
 
 |                   |   Loss   | Accuracy |
 |:-----------------:|:--------:|:--------:|
-|     Training      | 0.7675   |  0.8297  | 
-|    Validation     | 0.9352   |  0.8206  |
+|     Training      |  1.6403  |  0.7030  | 
+|    Validation     |  1.2369  |  0.7813  |
 
 - Comments: TODO
+
+#### Start from the token that has a valid context window TODO
 
 #### In Vitro TODO
 #### In Vivo TODO

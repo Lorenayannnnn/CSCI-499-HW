@@ -60,9 +60,7 @@ def get_input_label_data_skip_gram(sentences: list, context_window_len: int, pad
     context_list = []
     token_list = []
 
-    for (sentence_idx, sentence) in enumerate(sentences):
-        # if sentence_idx % 10000 == 0:
-        #     print(f"Parsed {sentence_idx}/{len(sentences)}")
+    for sentence in sentences:
         for (i, token) in enumerate(sentence):
             if token == 0:
                 break
@@ -85,23 +83,31 @@ def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_toke
     """
     context_list = []
     tokens = []
+    bound = int(context_window_len / 2)
 
-    for (sentence_idx, sentence) in enumerate(sentences):
-        # if sentence_idx % 10000 == 0:
-        #     print(f"Parsed {sentence_idx}/{len(sentences)}")
-        for (i, token) in enumerate(sentence):
-            if i >= lens[i][0]:
+    for (sentence_index, sentence) in enumerate(sentences):
+        # 1. Start from 1st token
+        for (token_index, token) in enumerate(sentence):
+            if token_index >= lens[sentence_index][0]:
                 break
-            # elif token == 3:
-            #     continue
             tokens.append(token)
 
             context = []
-            bound = int(context_window_len / 2)
-            for index in range(i - bound, i + bound + 1):
-                if index != i:
-                    context.append(get_token(sentence, index, pad_token))
+            for bound_index in range(token_index - bound, token_index + bound + 1):
+                if bound_index != token_index:
+                    context.append(get_token(sentence, bound_index, pad_token))
             context_list.append(context)
+
+        # 2. Start from token with a valid context window
+        # for i in range(bound, len(sentence) - bound):
+        #     if i >= lens[sentence_index][0]:
+        #         break
+        #     tokens.append(sentence[i])
+        #     context = []
+        #     for index in range(i - bound, i + bound + 1):
+        #         if index != i:
+        #             context.append(get_token(sentence, index, pad_token))
+        #     context_list.append(context)
 
     return numpy.array(context_list), numpy.array(tokens)
 
