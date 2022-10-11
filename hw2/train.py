@@ -52,20 +52,15 @@ def setup_dataloader(args, context_window_len):
     print("INFO: Start parsing sentences to train and validation dataset")
     train_sentences, val_sentences = utils.create_train_val_splits(all_sentences=encoded_sentences)
 
-    # Skip gram: 1 token as input and 2 words before & 2 words after as output
-    # $(context_window_len) number of words before and after the target token as the token's context
     pad_token = vocab_to_index['<pad>']
-    # Skip gram:
-    # Input: a token. Output: context words surrounding the input token
-    # Use the padding token if the context word does not exist (e.g.: 2 words before the first token in a sentence)
 
     # CBOW
-    train_input, train_labels = utils.get_input_label_data_cbow(train_sentences, context_window_len, pad_token, lens)
-    val_input, val_labels = utils.get_input_label_data_cbow(val_sentences, context_window_len, pad_token, lens)
+    # train_input, train_labels = utils.get_input_label_data_cbow(train_sentences, context_window_len, pad_token, lens)
+    # val_input, val_labels = utils.get_input_label_data_cbow(val_sentences, context_window_len, pad_token, lens)
 
     # Skipgram TODO skipgram input data
-    # train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token, args.vocab_size)
-    # val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token, args.vocab_size)
+    train_input, train_labels = utils.get_input_label_data_skip_gram(train_sentences, context_window_len, pad_token, args.vocab_size, lens)
+    val_input, val_labels = utils.get_input_label_data_skip_gram(val_sentences, context_window_len, pad_token, args.vocab_size, lens)
 
     train_dataset = TensorDataset(torch.from_numpy(train_input), torch.from_numpy(train_labels))
     val_dataset = TensorDataset(torch.from_numpy(val_input), torch.from_numpy(val_labels))
@@ -86,8 +81,8 @@ def setup_model(args, n_vocab: int, context_window_len: int):
     # ===================================================== #
     # TODO skipgram model
     n_embedding = 100
-    # model = SkipGramModel(n_vocab, n_embedding, context_window_len)
-    model = CBOWModel(n_vocab, n_embedding, context_window_len)
+    model = SkipGramModel(n_vocab, n_embedding, context_window_len)
+    # model = CBOWModel(n_vocab, n_embedding, context_window_len)
     return model
 
 
@@ -102,9 +97,9 @@ def setup_optimizer(args, model, device):
     # Also initialize your optimizer.
     # ===================================================== #
     # CBOW
-    criterion = torch.nn.CrossEntropyLoss().to(device)
+    # criterion = torch.nn.CrossEntropyLoss().to(device)
     # Skipgram TODO loss criterion
-    # criterion = torch.nn.BCEWithLogitsLoss().to(device)
+    criterion = torch.nn.BCEWithLogitsLoss().to(device)
     optimizer = torch.optim.Adam(params=model.parameters())
     return criterion, optimizer
 
@@ -149,9 +144,9 @@ def train_epoch(
 
         # compute metrics
         # CBOW
-        preds = pred_logits.argmax(-1)
+        # preds = pred_logits.argmax(-1)
         # Skipgram TODO get preds for skipgram
-        # preds = utils.parse_skipgram_preds(pred_logits, model.context_window_len)
+        preds = utils.parse_skipgram_preds(pred_logits, model.context_window_len)
         pred_labels.extend(preds.cpu().numpy())
         target_labels.extend(labels.cpu().numpy())
 
@@ -193,7 +188,7 @@ def main(args):
         return
 
     # get dataloaders
-    context_window_len = 8      # context window length
+    context_window_len = 4      # context window length
     train_loader, val_loader, index_to_vocab = setup_dataloader(args, context_window_len)
     loaders = {"train": train_loader, "val": val_loader}
 
@@ -258,16 +253,16 @@ def main(args):
 
         if epoch != 0 and epoch % args.save_every == 0:
             # TODO output filename of model checkpoint
-            ckpt_file = os.path.join(args.outputs_dir, "cbow_model_len_8.ckpt")
+            ckpt_file = os.path.join(args.outputs_dir, "skipgram_model_len_4.ckpt")
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
 
     # Output training and validation accuracy and loss graphs
     # CBOW TODO output filename of result images
-    utils.output_result_figure(args, "output_graphs/training_loss(CBOW_larger_window).png", all_train_loss, "Training Loss", False)
-    utils.output_result_figure(args, "output_graphs/training_acc(CBOW_larger_window).png", all_train_acc, "Training Accuracy", False)
-    utils.output_result_figure(args, "output_graphs/validation_loss(CBOW_larger_window).png", all_val_loss, "Validation Loss", True)
-    utils.output_result_figure(args, "output_graphs/validation_acc(CBOW_larger_window).png", all_val_loss, "Validation Accuracy", True)
+    utils.output_result_figure(args, "output_graphs/training_loss(skipgram_model_len_4).png", all_train_loss, "Training Loss", False)
+    utils.output_result_figure(args, "output_graphs/training_acc(skipgram_model_len_4).png", all_train_acc, "Training Accuracy", False)
+    utils.output_result_figure(args, "output_graphs/validation_loss(skipgram_model_len_4).png", all_val_loss, "Validation Loss", True)
+    utils.output_result_figure(args, "output_graphs/validation_acc(skipgram_model_len_4).png", all_val_loss, "Validation Accuracy", True)
 
     # save word vectors
     word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)

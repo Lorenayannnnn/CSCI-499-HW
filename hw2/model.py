@@ -2,6 +2,7 @@
 import torch
 from torch import nn
 
+
 class SkipGramModel(nn.Module):
     """
     Define model for learning word embeddings (Skip-gram)

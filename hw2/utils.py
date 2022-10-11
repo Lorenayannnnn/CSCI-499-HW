@@ -54,31 +54,29 @@ def create_train_val_splits(all_sentences: list, prop_train=0.7):
     return train_sentences, val_sentences
 
 
-def get_input_label_data_skip_gram(sentences: list, context_window_len: int, pad_token: int, n_vocab: int):
+def get_input_label_data_skip_gram(sentences: list, context_window_len: int, pad_token: int, n_vocab: int, lens: list):
     """
     Parse all sentences and get input and labels (skip_gram)
     token -> context word within the input context window length
     """
     context_list = []
     token_list = []
-
-    for sentence in sentences:
-        for (i, token) in enumerate(sentence):
-            if token == 0:
-                break
-            token_list.append(token)
+    bound = int(context_window_len / 2)
+    for (sentence_index, sentence) in enumerate(sentences):
+        for i in range(bound, lens[sentence_index][0] - bound):
+            # iterate all possible tokens
+            token_list.append(sentence[i])
             context = [0] * n_vocab
-            bound = int(context_window_len / 2)
-
+            # iterate context words
             for index in range(i - bound, i + bound + 1):
                 if index != i:
-                    context[get_token(sentence, index, pad_token)] = 1
+                    context[sentence[index]] = 1
             context_list.append(context)
 
     return numpy.array(token_list), numpy.array(context_list)
 
 
-def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_token: int, lens):
+def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_token: int, lens: list):
     """
     Parse all sentences and get input and labels (skip_gram)
     context -> token
@@ -112,19 +110,6 @@ def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_toke
     return numpy.array(context_list), numpy.array(tokens)
 
 
-def get_train_val_dataset():
-    train_df = pd.read_pickle("train.pkl")
-    val_df = pd.read_pickle("val.pkl")
-
-    # Read in data from local pickle file
-    x_train = train_df["input_data"].values.tolist()
-    y_train = train_df["labels"].values.tolist()
-    x_val = val_df["input_data"].values.tolist()
-    y_val = val_df["labels"].values.tolist()
-
-    return x_train, y_train, x_val, y_val
-
-
 def get_device(force_cpu, status=True):
     # Reference: from hw1
     if not force_cpu and torch.cuda.is_available():
@@ -139,20 +124,18 @@ def get_device(force_cpu, status=True):
 
 
 # TODO
-def parse_skipgram_preds(prediction, context_window_len: int):
-    index_list = [np.argpartition(indexes.detach().numpy(), -context_window_len)[-context_window_len::] for indexes in prediction]
+def parse_skipgram_preds(predictions, context_window_len: int):
+    # Find index of top {context_window_len} words with highest probability
+    index_list = [np.argpartition(prediction.detach().numpy(), -context_window_len)[-context_window_len::] for prediction
+                  in predictions]
     parsed_preds = []
-    for i, a in enumerate(prediction):
-        result = np.zeros(len(a))
+    for i, prediction in enumerate(predictions):
+        result = np.zeros(len(prediction))
         for index in index_list[i]:
             result[index] = 1
         parsed_preds.append(result)
 
     return torch.tensor(numpy.array(parsed_preds))
-    # index_list = np.array([np.argpartition(indexes.detach().numpy(), -context_window_len)[-context_window_len::] for
-    #               indexes in prediction])
-    # index_list.sort()
-    # return index_list
 
 
 def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_title: str, is_val: bool):
@@ -167,17 +150,3 @@ def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_t
     figure.show()
 
     figure.savefig(output_file_name)
-
-
-def save_index_to_vocab(arr: list):
-    with open('output/index_to_vocab.txt', 'w') as convert_file:
-        convert_file.write(json.dumps(arr))
-
-
-def load_index_to_vocab():
-    with open('output/index_to_vocab.txt') as f:
-        data = f.read()
-    index_to_vocab = json.loads(data)
-    index_to_vocab = {int(k): v for k, v in index_to_vocab.items()}
-
-    return index_to_vocab
