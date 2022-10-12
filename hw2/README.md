@@ -1,4 +1,4 @@
-This project implements CBOW and Skipgram.
+This project implements CBOW, which is experimented with 2 different context window length.
 
 ### Report
 Discussions of implementation choices and performances are documented in [REPORT.md](REPORT.md)
