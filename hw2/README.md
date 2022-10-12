@@ -31,6 +31,8 @@ python train.py \
     --analogies_fn analogies_v3000_1309.json \
     --data_dir books/ \
     --downstream_eval \
-    --word_vector_fn learned_word_vectors_len_4.txt \
-    --outputs_dir output/
+    --outputs_dir output/ \
+    --word_vector_fn learned_word_vectors_CBOW_len_2.txt
+
+word_vector_fn = learned_word_vectors_CBOW_len_2.txt or learned_word_vectors_CBOW_len_4.txt
 ```
