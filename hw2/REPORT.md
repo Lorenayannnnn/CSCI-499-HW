@@ -5,7 +5,7 @@ Table of Content
 - [Implementation Choices](#implementation-choices)
   - [Encoding](#encoding)
   - [Hyperparameters](#hyperparameters)
-  - [Model](#model)
+  - [Model](#cbow-model)
   - [Optimizer](#optimizer)
   - [Loss Criterion](#loss-criterion)
 - [Released Code Analysis](#released-code-analysis)
@@ -14,24 +14,20 @@ Table of Content
   - [Assumptions/Simplifications](#assumptionssimplifications-what-might-go-wrong-overunder-estimate-model-performance)
 - [Performance](#Performance)
   - [CBOW-4-word-context: in vitro](#cbow-4-word-context-in-vitro)
-    - [Parse context with all tokens](#parse-context-starting-from-the-very-1st-token-and-ending-at-the-very-last-token)
-    - [Parse context with only tokens that have valid context window](#start-from-the-token-that-has-a-valid-context-window)
-  - [CBOW-4-word-context: in vivo](#4-word-context-in-vivo)
+  - [CBOW-4-word-context: in vivo](#cbow-4-word-context-in-vivo)
   - [CBOW-8-word-context: in vitro](#8-words-as-context-in-vitro)
   - [CBOW-8-word-context: in vivo](#8-word-context-in-vivo)
 - [Other Comments](#other-possible-concernsimprovements)
 
 ## Implementation Choices
-- n_epochs = 10 (due to CPU limitation :( )
+- n_epochs = 10
 - Validate every 1 epoch
 - 70% training, 30% validation
+- Batch size = 32
 
 ### Encoding
 - Word-level tokenizer with 3000 words in dictionary (including 4 other special tokens \<pad\>, \<start\>, \<end\>, and \<unk\>)
-#### CBOW
-- Input: context window length of 4 is used. 2 words before a token is parsed as the input of that token. 2 different processings are experimented here:
-  1. Parse context starting from the very 1st token and ending at the very last token within the sentence length (e.g.: 2 previous context words of the 1st token will be padding)
-  2. Start from the token that has a valid context window (e.g.: if the context window length is 4, then the first token that will be processed is the 3rd token in the sentence)
+- Input: context window length of 4 is used. 2 words before a token is parsed as the input of that token
 - Output: target token
 
 ### Hyperparameters
@@ -50,7 +46,7 @@ Table of Content
 Used Adam instead of SGD for better convergence to global minimum with momentum
 
 ### Loss Criterion
-- CBOW: Used cross entropy loss for multi-class classification
+Used cross entropy loss for multi-class classification
 
 ## Released Code Analysis
 ### Tasks
@@ -80,76 +76,56 @@ For accuracy, we select the token with the highest probability and then check if
 
 ## Performance
 ### CBOW-4-word-context: in vitro
-#### Parse context starting from the very 1st token and ending at the very last token
-![CBOW_4_word_context_train_acc](output_graphs/training_acc(CBOW_with_all_tokens).png)
-![CBOW_4_word_context_train_loss](output_graphs/training_loss(CBOW_with_all_tokens).png)
-![CBOW_4_word_context_val_acc](output_graphs/validation_acc(CBOW_with_all_tokens).png)
-![CBOW_4_word_context_val_loss](output_graphs/validation_loss(CBOW_with_all_tokens).png)
+![CBOW_4_word_context_train_acc](output_graphs/training_acc(CBOW_len_4_with_valid_window).png)
+![CBOW_4_word_context_train_loss](output_graphs/training_loss(CBOW_len_4_with_valid_window).png)
+![CBOW_4_word_context_val_acc](output_graphs/validation_acc(CBOW_len_4_with_valid_window).png)
+![CBOW_4_word_context_val_loss](output_graphs/validation_loss(CBOW_len_4_with_valid_window).png)
 
 |                   |   Loss   | Accuracy |
 |:-----------------:|:--------:|:--------:|
-|     Training      |  1.6403  |  0.7030  | 
-|    Validation     |  1.2243  |  0.7829  |
+|     Training      |  4.4439  |  0.2260  | 
+|    Validation     |  4.3256  |  0.2230  |
 
-#### Start from the token that has a valid context window
-##### 4-word-context: in vitro
-![CBOW_4_word_context_train_acc](output_graphs/training_acc(CBOW_with_valid_window).png)
-![CBOW_4_word_context_train_loss](output_graphs/training_loss(CBOW_with_valid_window).png)
-![CBOW_4_word_context_val_acc](output_graphs/validation_acc(CBOW_with_valid_window).png)
-![CBOW_4_word_context_val_loss](output_graphs/validation_loss(CBOW_with_valid_window).png)
+Comments: as can be seen from the table and graphs above, the performance is not very satisfying, for which I suspect that the model may not be complex enough to learn all the relations among input context words.
 
-|                   |   Loss   | Accuracy |
-|:-----------------:|:--------:|:--------:|
-|     Training      |  1.6312  |  0.7140  | 
-|    Validation     |  1.2354  |  0.7892  |
-
-Comments: 
-- As can be seen from above, extracting tokens with valid context windows (i.e. ignore words that do not have enough context words before/after them) increases models' performance (by 1%).
-This is reasonable since there will be much fewer padding tokens in the input data, and most 2 words, at the beginning of a sentence for instance, are usually stop words, which have less influence on other relatively more important words.
-- Noted: the validation and training loss are still both decreasing, and validation and training accuracy are still both increasing at the end of 10 epochs, so maybe training the model with more epochs can further increase model's performance.
-
----- For the rest of the report, only tokens with valid context window are included in the dataset ----
-
-##### 4-word-context: in vivo
+### CBOW-4-word-context: in vivo
 |                   |   Exact   | MRR | MR |
 |:-----------------:|:--------:|:--------:|:--------:|
-|     Overall      |  0.0290  |  0.0547  |  18  | 
-|    Semantics     |  0.0062  |  0.0197  |  51  |
-|    Syntax     |  0.0941  |  0.1545  |  6  |
+|     Overall      |  0.0489  |  0.0808  |  12  | 
+|    Semantics     |  0.0072  |  0.0273  |  37  |
+|    Syntax     |  0.1676  |  0.2335  |  4  |
 
-###### Semantics
-![CBOW_in_vivo_sem](output_graphs/in_vivo_semantics(CBOW).png)
-###### Syntax
-![CBOW_in_vivo_syn](output_graphs/in_vivo_syntactic(CBOW).png)
+##### Semantics
+![CBOW_in_vivo_sem](output_graphs/in_vivo_len_4_sem.png)
+##### Syntax
+![CBOW_in_vivo_syn](output_graphs/in_vivo_len_4_syn.png)
 
 Comments: as can be seen from above, the model performs better at capturing syntactic information than semantics, which is reasonable since only 4 words surrounding a target word are used as the word's context, so it's difficult for the model to learn global semantic relations.
 
-##### 8 words as context in vitro
-![CBOW_8_word_context_train_acc](output_graphs/training_acc(CBOW_larger_window).png)
-![CBOW_8_word_context_train_loss](output_graphs/training_loss(CBOW_larger_window).png)
-![CBOW_8_word_context_val_acc](output_graphs/validation_acc(CBOW_larger_window).png)
-![CBOW_8_word_context_val_loss](output_graphs/validation_loss(CBOW_larger_window).png)
+##### 8 words as context: in vitro
+![CBOW_8_word_context_train_acc](output_graphs/training_acc(CBOW_len_8).png)
+![CBOW_8_word_context_train_loss](output_graphs/training_loss(CBOW_len_8).png)
+![CBOW_8_word_context_val_acc](output_graphs/validation_acc(CBOW_len_8).png)
+![CBOW_8_word_context_val_loss](output_graphs/validation_loss(CBOW_len_8).png)
 
 |                   |   Loss   | Accuracy |
 |:-----------------:|:--------:|:--------:|
-|     Training      |  1.5751  |  0.7272  | 
-|    Validation     |  1.1877  |  0.8030  |
-
-Comments: Compared with the result of 4-word-context (in vitro) CBOW model, the performance slightly increases, which is expected as the model is taking more words into account and learning more context information (both semantic and syntactic information).  
+|     Training      |  4.3276  |  0.2256  | 
+|    Validation     |  4.4369  |  0.2247  |
 
 ##### 8-word-context: in vivo
-|                   |   Exact   | MRR | MR |
+|                   |   Exact  |    MRR   |    MR    |
 |:-----------------:|:--------:|:--------:|:--------:|
-|     Overall      |  0.0260  |  0.0459  |  22  | 
-|    Semantics     |  0.0072  |  0.0176  |  57  |
-|    Syntax     |  0.0794  |  0.1267  |  8  |
+|      Overall      |  0.0382  |  0.0696  |    14    | 
+|     Semantics     |  0.0072  |  0.0250  |    40    |
+|       Syntax      |  0.1265  |  0.1965  |     5    |
 
-Comments:
-- Compared with the in-vivo evaluation result of 4-word-context CBOW model, the 8-word-context model performs slightly better at semantic tasks. Specifically, it performs slightly better on the "exact" metric (though the value is still very low), which is also expected as the model is taking more words as context, so it may be better at capturing more global/semantic information.
-- However, it overall performs worse than the 4-word-context model. My speculation is that given the model only has 1 embedding layer and 1 linear layer, the model may not be complex enough to learn all the underlying relations based on input 8-word-context. 
+Comments: 
+Overall, the model performs worse for downstream tasks compared to the 4-word-context model (regarding both _in vitro_ and _in vivo_), while the result of the "Exact" metric stays the same. 
+I suspect that the model may not have enough data to learn. Given that 8 words are needed to form a valid context window, total number of input entries will be less than that of 4-word-context. Maybe train the model with more epochs/get more data/ have a more complex model architecture will help.
 
 
 ## Other possible concerns/improvements
 - Try different dimensions for the embedding layer
 - Try other model architecture, such as adding layers to learn a more complex relation
-- Add sampling scheme
+- Try more varying context window length
