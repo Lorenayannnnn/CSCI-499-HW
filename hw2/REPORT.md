@@ -27,7 +27,7 @@ Table of Content
 
 ### Encoding
 - Word-level tokenizer with 3000 words in dictionary (including 4 other special tokens \<pad\>, \<start\>, \<end\>, and \<unk\>)
-- Input: context window length of 4 is used. 2 words before a token is parsed as the input of that token
+- Input: context window lengths of 2 and 4 are used
 - Output: target token
 
 ### Hyperparameters
@@ -35,7 +35,7 @@ Table of Content
 |:---------:|:-----:|:-----------:|
 | n_vocab | 3000 | number of vocabulary in the dictionary
 | n_embedding | 100 | dimension of embedding layer (chosen arbitrarily)
-| context_window_len | 2/4 | total number of tokens used as the context of the target token
+| context_window_len | 2/4 | total number of tokens used as the context of the target token = 2 * context_window_len
 
 ### CBOW Model
 - Embedding layer with dimension of 100
@@ -65,13 +65,14 @@ For accuracy, we select the token with the highest probability and then check if
 - The evaluation util function first uses <code>gensim.models.KeyedVectors</code> to store and calculate C + B - A. Then, top 1000 words are sampled from the space based on the result.
 - 3 values are calculated:
   - Exact: top-1 choice matches with the actual word
-  - MRR: if top-1 choice does not match the actual word, then the score is calculated based on the predicted word's ranking (1/word's ranking)
+  - MRR: the score is calculated based on the word's ranking (1/word's ranking) among all top-1000 sampled words.
   - MR: inverse of MRR
 
 
 ### Assumptions/Simplifications (what might go "wrong", over/under-estimate model performance)
 - The first potential issue that I noticed is that the number of entries for each relation is not well-balanced. For instance, for semantic tasks, the "hypernomy" relation has 542 entries, whereas "capitals" has only 1 entry. Insufficient number of entries for certain relation/task may cause the metric to both overestimate/underestimate model's performance (the model made a correct/wrong prediction but the result is not representative)).
 - Given that evaluation is done based on the result of C + B - A and actual word D, the metric assumes that the word embedding contains vector for the word D (i.e. D exists in our training corpus). However, if we train our model on a smaller dataset / has a smaller vocab size (smaller than 3000 in this case), then we cannot make a correct prediction.
+- The metric doesn't take special tokens into consideration. Given that the evaluation metric doesn't ignore special tokens like <pad> while our model has learned how special tokens are related with other words, the metric may underestimate our model's ability of predicting other tokens, because it doesn't exclude special tokens when sampling top-1000 words while there's no special tokens in the downstream evaluation data entries.
 
 ## Performance
 ### CBOW-4-word-context: in vitro
