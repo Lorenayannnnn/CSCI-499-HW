@@ -65,13 +65,12 @@ def get_input_label_data_cbow(sentences: list, context_window_len: int, pad_toke
     """
     context_list = []
     tokens = []
-    bound = int(context_window_len / 2)
 
     for (sentence_index, sentence) in enumerate(sentences):
-        for i in range(bound, lens[sentence_index][0] - bound):
+        for i in range(context_window_len, lens[sentence_index][0] - context_window_len):
             tokens.append(sentence[i])
             context = []
-            for index in range(i - bound, i + bound + 1):
+            for index in range(i - context_window_len, i + context_window_len + 1):
                 if index != i:
                     context.append(get_token(sentence, index, pad_token))
             context_list.append(context)

@@ -35,7 +35,7 @@ Table of Content
 |:---------:|:-----:|:-----------:|
 | n_vocab | 3000 | number of vocabulary in the dictionary
 | n_embedding | 100 | dimension of embedding layer (chosen arbitrarily)
-| context_window_len | 4/8 | total number of tokens used as the context of the target token
+| context_window_len | 2/4 | total number of tokens used as the context of the target token
 
 ### CBOW Model
 - Embedding layer with dimension of 100
@@ -72,14 +72,13 @@ For accuracy, we select the token with the highest probability and then check if
 ### Assumptions/Simplifications (what might go "wrong", over/under-estimate model performance)
 - The first potential issue that I noticed is that the number of entries for each relation is not well-balanced. For instance, for semantic tasks, the "hypernomy" relation has 542 entries, whereas "capitals" has only 1 entry. Insufficient number of entries for certain relation/task may cause the metric to both overestimate/underestimate model's performance (the model made a correct/wrong prediction but the result is not representative)).
 - Given that evaluation is done based on the result of C + B - A and actual word D, the metric assumes that the word embedding contains vector for the word D (i.e. D exists in our training corpus). However, if we train our model on a smaller dataset / has a smaller vocab size (smaller than 3000 in this case), then we cannot make a correct prediction.
-- TODO
 
 ## Performance
 ### CBOW-4-word-context: in vitro
-![CBOW_4_word_context_train_acc](output_graphs/training_acc(CBOW_len_4_with_valid_window).png)
-![CBOW_4_word_context_train_loss](output_graphs/training_loss(CBOW_len_4_with_valid_window).png)
-![CBOW_4_word_context_val_acc](output_graphs/validation_acc(CBOW_len_4_with_valid_window).png)
-![CBOW_4_word_context_val_loss](output_graphs/validation_loss(CBOW_len_4_with_valid_window).png)
+![CBOW_2_word_context_train_acc](output_graphs/training_acc(CBOW_len_2_with_valid_window).png)
+![CBOW_2_word_context_train_loss](output_graphs/training_loss(CBOW_len_2_with_valid_window).png)
+![CBOW_2_word_context_val_acc](output_graphs/validation_acc(CBOW_len_2_with_valid_window).png)
+![CBOW_2_word_context_val_loss](output_graphs/validation_loss(CBOW_len_2_with_valid_window).png)
 
 |                   |   Loss   | Accuracy |
 |:-----------------:|:--------:|:--------:|
@@ -96,17 +95,17 @@ Comments: as can be seen from the table and graphs above, the performance is not
 |    Syntax     |  0.1676  |  0.2335  |  4  |
 
 ##### Semantics
-![CBOW_in_vivo_sem](output_graphs/in_vivo_len_4_sem.png)
+![CBOW_in_vivo_sem](output_graphs/in_vivo_len_2_sem.png)
 ##### Syntax
-![CBOW_in_vivo_syn](output_graphs/in_vivo_len_4_syn.png)
+![CBOW_in_vivo_syn](output_graphs/in_vivo_len_2_syn.png)
 
 Comments: as can be seen from above, the model performs better at capturing syntactic information than semantics, which is reasonable since only 4 words surrounding a target word are used as the word's context, so it's difficult for the model to learn global semantic relations.
 
 ##### 8 words as context: in vitro
-![CBOW_8_word_context_train_acc](output_graphs/training_acc(CBOW_len_8).png)
-![CBOW_8_word_context_train_loss](output_graphs/training_loss(CBOW_len_8).png)
-![CBOW_8_word_context_val_acc](output_graphs/validation_acc(CBOW_len_8).png)
-![CBOW_8_word_context_val_loss](output_graphs/validation_loss(CBOW_len_8).png)
+![CBOW_4_word_context_train_acc](output_graphs/training_acc(CBOW_len_4).png)
+![CBOW_4_word_context_train_loss](output_graphs/training_loss(CBOW_len_4).png)
+![CBOW_4_word_context_val_acc](output_graphs/validation_acc(CBOW_len_4).png)
+![CBOW_4_word_context_val_loss](output_graphs/validation_loss(CBOW_len_4).png)
 
 |                   |   Loss   | Accuracy |
 |:-----------------:|:--------:|:--------:|

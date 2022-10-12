@@ -181,7 +181,7 @@ def main(args):
         return
 
     # get dataloaders
-    context_window_len = 4      # context window length
+    context_window_len = 2      # context window length
     train_loader, val_loader, index_to_vocab = setup_dataloader(args, context_window_len)
     loaders = {"train": train_loader, "val": val_loader}
 
@@ -245,15 +245,15 @@ def main(args):
             # downstream_validation(word_vec_file, external_val_analogies)
 
         if epoch != 0 and epoch % args.save_every == 0:
-            ckpt_file = os.path.join(args.outputs_dir, "model_CBOW_len_8.ckpt")
+            ckpt_file = os.path.join(args.outputs_dir, "model.ckpt")
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
 
     # Output training and validation accuracy and loss graphs
-    utils.output_result_figure(args, "output_graphs/training_loss(CBOW_len_8).png", all_train_loss, "Training Loss", False)
-    utils.output_result_figure(args, "output_graphs/training_acc(CBOW_len_8).png", all_train_acc, "Training Accuracy", False)
-    utils.output_result_figure(args, "output_graphs/validation_loss(CBOW_len_8).png", all_val_loss, "Validation Loss", True)
-    utils.output_result_figure(args, "output_graphs/validation_acc(CBOW_len_8).png", all_val_loss, "Validation Accuracy", True)
+    utils.output_result_figure(args, "output_graphs/training_loss.png", all_train_loss, "Training Loss", False)
+    utils.output_result_figure(args, "output_graphs/training_acc.png", all_train_acc, "Training Accuracy", False)
+    utils.output_result_figure(args, "output_graphs/validation_loss.png", all_val_loss, "Validation Loss", True)
+    utils.output_result_figure(args, "output_graphs/validation_acc.png", all_val_loss, "Validation Accuracy", True)
 
     # save word vectors
     word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)
