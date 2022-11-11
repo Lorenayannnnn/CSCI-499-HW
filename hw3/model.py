@@ -70,7 +70,7 @@ class Decoder(nn.Module):
 class EncoderDecoder(nn.Module):
     """
     Wrapper class over the Encoder and Decoder.
-    TODO: edit the forward pass arguments to suit your needs
+    TODO: check
     """
 
     def __init__(self, n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
@@ -83,11 +83,16 @@ class EncoderDecoder(nn.Module):
         self.encoder = Encoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate)
         self.decoder = Decoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets)
 
-
     def forward(self, episodes, labels):
         """
-        episodes: [batch_size, seq_len]
-        labels: [batch_size, num_of_instruction_in_one_episode, 2(containing action and target)]
+        parameters:
+        - episodes: [batch_size, seq_len]
+        - labels: [batch_size, num_of_instruction_in_one_episode, 2(containing action and target)]
+
+        return:
+        - all_predicted_pairs ([batch_size, instruction_num, 2])
+        - action_prob_dist ([instruction_num * batch_size, n_actions])
+        - target_prob_dist ([instruction_num * batch_size, n_targets])
         """
         hidden, cell = self.encoder(episodes)
         batch_size = len(labels)
@@ -95,22 +100,28 @@ class EncoderDecoder(nn.Module):
         labels = np.transpose(labels, axes=[1, 0, 2])
 
         # Store predicted distribution of action & target: [instruction_num, batch_size, n_actions/n_targets]
-        action_prob_dist = []
-        target_prob_dist = []
-        all_predicted_pairs = []
+        action_prob_dist = np.zeros((instruction_num, batch_size, self.n_actions))
+        target_prob_dist = np.zeros((instruction_num, batch_size, self.n_targets))
+        all_predicted_pairs = np.zeros((batch_size, instruction_num, 2))
         # Corresponds to A_START and T_START tokens
         predicted_pairs = np.zeros((2, batch_size))
+        all_predicted_pairs[0] = predicted_pairs
         for i in range(1, instruction_num):
             action_output, target_output, hidden, cell = self.decoder(predicted_pairs, hidden, cell)
             # Store result
-            action_prob_dist.append(action_output)
-            target_prob_dist.append(target_output)
+            action_prob_dist[i] = action_output
+            target_prob_dist[i] = target_output
             # Update predicted pair (depends on whether using teacher-forcing)
             predicted_action = np.argmax(action_output, axis=1)
             predicted_target = np.argmax(target_output, axis=1)
             predicted_pairs = [predicted_action, predicted_target]
-            all_predicted_pairs.append(predicted_pairs)
+            all_predicted_pairs[i] = predicted_pairs
             # Use true labels if teacher_forcing
-            predicted_pairs = np.transpose(labels[i - 1]) if self.teacher_forcing else np.array(predicted_pairs)
+            predicted_pairs = np.transpose(labels[i]) if self.teacher_forcing else np.array(predicted_pairs)
 
-        return np.transpose(np.array(all_predicted_pairs), axes=[2, 0, 1]), action_prob_dist, target_prob_dist
+
+        return (
+            all_predicted_pairs.transpose([1, 0, 2]),
+            action_prob_dist.reshape((action_prob_dist.shape[0]*action_prob_dist.shape[1], action_prob_dist.shape[2])),
+            target_prob_dist.reshape((target_prob_dist.shape[0]*target_prob_dist.shape[1], target_prob_dist.shape[2]))
+        )

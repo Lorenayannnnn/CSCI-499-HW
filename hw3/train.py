@@ -8,12 +8,15 @@ from torch.utils.data import TensorDataset, DataLoader
 
 from utils import (
     get_device,
-    preprocess_string,
     build_tokenizer_table,
     build_output_tables,
     prefix_match,
+    exact_match,
     encode_data,
+    parse_action_target_labels
 )
+
+from model import EncoderDecoder
 
 
 def setup_dataloader(args):
@@ -56,15 +59,15 @@ def setup_dataloader(args):
     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
     val_loader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, len(vocab_to_index), len(actions_to_index), len(targets_to_index)
 
 
-def setup_model(args, device):
+def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int):
     """
     return:
-        - model: YourOwnModelClass
+        - model: EncoderDecoder
     """
-    # ================== TODO: CODE HERE ================== #
+    # ===================================================== #
     # Task: Initialize your model. Your model should be an
     # an encoder-decoder architecture that encoders the
     # input sentence into a context vector. The decoder should
@@ -81,22 +84,27 @@ def setup_model(args, device):
     # of feeding the model prediction into the recurrent model,
     # you will give the embedding of the target token.
     # ===================================================== #
-    model = None
+    embedding_dim = 128
+    hidden_dim = 64
+    n_hidden_layer = 2
+    dropout_rate = 0.3
+    model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
+                           args.teacher_forcing)
     return model
 
 
-def setup_optimizer(args, model):
+def setup_optimizer(args, model, device):
     """
     return:
         - criterion: loss_fn
         - optimizer: torch.optim
     """
-    # ================== TODO: CODE HERE ================== #
+    # ===================================================== #
     # Task: Initialize the loss function for action predictions
     # and target predictions. Also initialize your optimizer.
     # ===================================================== #
-    criterion = None
-    optimizer = None
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=1).to(device)
+    optimizer = torch.optim.Adam(params=model.parameters())
 
     return criterion, optimizer
 
@@ -111,7 +119,6 @@ def train_epoch(
     training=True,
 ):
     """
-    # TODO: implement function for greedy decoding.
     # This function should input the instruction sentence
     # and autoregressively predict the target label by selecting
     # the token with the highest probability at each step.
@@ -124,22 +131,28 @@ def train_epoch(
     # Output: [(GoToLocation, diningtable), (PutObject, diningtable)]
     # Also write some code to compute the accuracy of your
     # predictions against the ground truth.
+
+    --> Implemented in the EncoderDecoder model
     """
 
     epoch_loss = 0.0
-    epoch_acc = 0.0
+    epoch_exact_match_acc = 0.0
+    epoch_prefix_match_acc = 0.0
 
     # iterate over each batch in the dataloader
     # NOTE: you may have additional outputs from the loader __getitem__, you can modify this
     for (inputs, labels) in loader:
         # put model inputs to device
         inputs, labels = inputs.to(device), labels.to(device)
-
+        action_labels, target_labels = parse_action_target_labels(labels)
         # calculate the loss and train accuracy and perform backprop
         # NOTE: feel free to change the parameters to the model forward pass here + outputs
-        output = model(inputs, labels)
+        all_predicted_pairs, action_prob_dist, target_prob_dist = model(inputs, labels)
 
-        loss = criterion(output.squeeze(), labels[:, 0].long())
+        action_loss = criterion(action_prob_dist, action_labels)
+        target_loss = criterion(target_prob_dist, target_labels)
+
+        loss = action_loss + target_loss
 
         # step optimizer and compute gradients during training
         if training:
@@ -153,19 +166,19 @@ def train_epoch(
         # exact match and prefix exact match. You can also try to compute longest common subsequence.
         # Feel free to change the input to these functions.
         """
-        # TODO: add code to log these metrics
-        em = output == labels
-        prefix_em = prefix_em(output, labels)
-        acc = 0.0
+        exact_match_score = exact_match(all_predicted_pairs, labels)
+        prefix_match_score = prefix_match(all_predicted_pairs, labels)
 
         # logging
         epoch_loss += loss.item()
-        epoch_acc += acc.item()
+        epoch_exact_match_acc += exact_match_score
+        epoch_prefix_match_acc += prefix_match_score
 
     epoch_loss /= len(loader)
-    epoch_acc /= len(loader)
+    epoch_exact_match_acc /= len(loader)
+    epoch_prefix_match_acc /= len(loader)
 
-    return epoch_loss, epoch_acc
+    return epoch_loss, epoch_exact_match_acc, epoch_prefix_match_acc
 
 
 def validate(args, model, loader, optimizer, criterion, device):
@@ -174,7 +187,7 @@ def validate(args, model, loader, optimizer, criterion, device):
 
     # don't compute gradients
     with torch.no_grad():
-        val_loss, val_acc = train_epoch(
+        val_loss, val_exact_match_acc, val_prefix_match_acc = train_epoch(
             args,
             model,
             loader,
@@ -184,7 +197,7 @@ def validate(args, model, loader, optimizer, criterion, device):
             training=False,
         )
 
-    return val_loss, val_acc
+    return val_loss, val_exact_match_acc, val_prefix_match_acc
 
 
 def train(args, model, loaders, optimizer, criterion, device):
@@ -197,7 +210,7 @@ def train(args, model, loaders, optimizer, criterion, device):
 
         # train single epoch
         # returns loss for action and target prediction and accuracy
-        train_loss, train_acc = train_epoch(
+        train_loss, train_exact_match_acc, train_prefix_match_acc = train_epoch(
             args,
             model,
             loaders["train"],
@@ -207,13 +220,13 @@ def train(args, model, loaders, optimizer, criterion, device):
         )
 
         # some logging
-        print(f"train loss : {train_loss}")
+        print(f"train loss : {train_loss} | train_exact_match_acc: {train_exact_match_acc} | train_prefix_match_acc: {train_prefix_match_acc}")
 
         # run validation every so often
         # during eval, we run a forward pass through the model and compute
         # loss and accuracy but we don't update the model weights
         if epoch % args.val_every == 0:
-            val_loss, val_acc = validate(
+            val_loss, val_exact_match_acc, val_prefix_match_acc = validate(
                 args,
                 model,
                 loaders["val"],
@@ -222,7 +235,7 @@ def train(args, model, loaders, optimizer, criterion, device):
                 device,
             )
 
-            print(f"val loss : {val_loss} | val acc: {val_acc}")
+            print(f"val loss : {val_loss} | val_exact_match_acc acc: {val_exact_match_acc} | val_prefix_match_acc: {val_prefix_match_acc}")
 
     # ================== TODO: CODE HERE ================== #
     # Task: Implement some code to keep track of the model training and
@@ -236,22 +249,24 @@ def main(args):
 
     # get dataloaders
     # train_loader, val_loader, maps = setup_dataloader(args)
+    train_loader, val_loader, n_vocab, n_actions, n_targets = setup_dataloader(args)
 
-    # train_loader, val_loader, = setup_dataloader(args)
-    # torch.save(train_loader, "outputs/train_loader.pth")
-    # torch.save(val_loader, "outputs/val_loader.pth")
+    print("n_vocab:", n_vocab)
+    print("n_actions:", n_actions)
+    print("n_targets:", n_targets)
 
-    train_loader = torch.load("outputs/train_loader.pth")
-    val_loader = torch.load("outputs/val_loader.pth")
+    for input, label in train_loader:
+        print(label)
+        return
 
     loaders = {"train": train_loader, "val": val_loader}
 
     # build model
-    model = setup_model(args, device)
+    model = setup_model(args, device, n_vocab, n_actions, n_targets)
     print(model)
 
     # get optimizer and loss functions
-    criterion, optimizer = setup_optimizer(args, model)
+    criterion, optimizer = setup_optimizer(args, model, device)
 
     if args.eval:
         val_loss, val_acc = validate(

@@ -87,16 +87,25 @@ def prefix_match(predicted_labels, gt_labels):
     # predicted and gt are sequences of (action, target) labels, the sequences should be of same length
     # computes how many matching (action, target) labels there are between predicted and gt
     # is a number between 0 and 1 
-
-    seq_length = len(gt_labels)
-    
-    for i in range(seq_length):
-        if predicted_labels[i] != gt_labels[i]:
-            break
-    
-    pm = (1.0 / seq_length) * i
+    batch_size = len(gt_labels)
+    seq_length = len(gt_labels[0])
+    pm = 0
+    for i in range(batch_size):
+        for j in range(seq_length):
+            if predicted_labels[i] != gt_labels[i]:
+                break
+        pm += (1.0 / seq_length) * j
 
     return pm
+
+
+def exact_match(predicted_labels, gt_labels):
+    batch_size = len(gt_labels)
+    em = 0
+    for i in range(batch_size):
+        if predicted_labels[i] == gt_labels[i]:
+            em += 1
+    return em
 
 
 def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dict, targets_to_index: dict,
@@ -115,7 +124,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     # Maximum number of action-target pairs of 1 episode among all
     max_action_target_pair_len = 0
     for (idx, episode) in enumerate(training_data):
-        episode_labels = [actions_to_index["A_START"], targets_to_index["T_STOP"]]
+        episode_labels = [[actions_to_index["A_START"], targets_to_index["T_START"]]]
         jdx = 0
         for entry in episode:
             processed_instruction = preprocess_string(entry[0])
@@ -163,3 +172,20 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
         % (n_early_cutoff, seq_len)
     )
     return encoded_episodes, encoded_labels
+
+
+def parse_action_target_labels(labels):
+    """
+    label: [batch_size, instruction_num, 2]
+
+    return:
+    - action_labels: [batch_size * instruction_num]
+    - action_labels: [batch_size * instruction_num]
+    """
+    action_labels = []
+    target_labels = []
+    for idx, label in enumerate(labels):
+        action_labels.extend(label[:, 0])
+        target_labels.extend(label[:, 1])
+
+    return np.array(action_labels), np.array(target_labels)
