@@ -70,6 +70,9 @@ For accuracy, we select the token with the highest probability and then check if
 
 
 ### Assumptions/Simplifications (what might go "wrong", over/under-estimate model performance)
+#### In vitro
+- 
+#### In vivo
 - The first potential issue that I noticed is that the number of entries for each relation is not well-balanced. For instance, for semantic tasks, the "hypernomy" relation has 542 entries, whereas "capitals" has only 1 entry. Insufficient number of entries for certain relation/task may cause the metric to both overestimate/underestimate model's performance (the model made a correct/wrong prediction but the result is not representative)).
 - Given that evaluation is done based on the result of C + B - A and actual word D, the metric assumes that the word embedding contains vector for the word D (i.e. D exists in our training corpus). However, if we train our model on a smaller dataset / has a smaller vocab size (smaller than 3000 in this case), then we cannot make a correct prediction.
 - The metric doesn't take special tokens into consideration. Given that the evaluation metric doesn't ignore special tokens like <pad> while our model has learned how special tokens are related with other words, the metric may underestimate our model's ability of predicting other tokens, because it doesn't exclude special tokens when sampling top-1000 words while there's no special tokens in the downstream evaluation data entries.
