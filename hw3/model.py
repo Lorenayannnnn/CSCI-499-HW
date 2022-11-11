@@ -1,4 +1,4 @@
-# IMPLEMENT YOUR MODEL CLASS HERE
+
 import numpy as np
 import torch.nn as nn
 

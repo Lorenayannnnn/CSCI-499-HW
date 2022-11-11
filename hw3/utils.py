@@ -2,6 +2,7 @@ import re
 import torch
 import numpy as np
 from collections import Counter
+import matplotlib.pyplot as plt
 
 
 def get_device(force_cpu, status=True):
@@ -189,3 +190,16 @@ def parse_action_target_labels(labels):
         target_labels.extend(label[:, 1])
 
     return np.array(action_labels), np.array(target_labels)
+
+
+def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_title: str, is_val: bool):
+    x_axis_data = [i for i in range(1, args.num_epochs + 1, args.val_every)] if is_val else [i for i in range(1, args.num_epochs + 1)]
+
+    figure, ax = plt.subplots()
+    ax.plot(x_axis_data, y_axis_data)
+    ax.set_title(graph_title)
+    ax.set_xlabel("Num of epochs")
+
+    figure.show()
+
+    figure.savefig(output_file_name)

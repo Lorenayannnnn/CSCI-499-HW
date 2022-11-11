@@ -13,7 +13,8 @@ from utils import (
     prefix_match,
     exact_match,
     encode_data,
-    parse_action_target_labels
+    parse_action_target_labels,
+    output_result_figure
 )
 
 from model import EncoderDecoder
@@ -204,6 +205,14 @@ def train(args, model, loaders, optimizer, criterion, device):
     # Train model for a fixed number of epochs
     # In each epoch we compute loss on each sample in our dataset and update the model
     # weights via backpropagation
+
+    all_train_exact_match_acc = []
+    all_train_prefix_match_acc = []
+    all_train_loss = []
+    all_val_exact_match_acc = []
+    all_val_prefix_match_acc = []
+    all_val_loss = []
+
     model.train()
 
     for epoch in tqdm.tqdm(range(args.num_epochs)):
@@ -220,7 +229,11 @@ def train(args, model, loaders, optimizer, criterion, device):
         )
 
         # some logging
-        print(f"train loss : {train_loss} | train_exact_match_acc: {train_exact_match_acc} | train_prefix_match_acc: {train_prefix_match_acc}")
+        print(
+            f"train loss : {train_loss} | train_exact_match_acc: {train_exact_match_acc} | train_prefix_match_acc: {train_prefix_match_acc}")
+        all_train_loss.append(train_loss)
+        all_train_exact_match_acc.append(train_exact_match_acc)
+        all_train_prefix_match_acc.append(train_prefix_match_acc)
 
         # run validation every so often
         # during eval, we run a forward pass through the model and compute
@@ -235,14 +248,27 @@ def train(args, model, loaders, optimizer, criterion, device):
                 device,
             )
 
-            print(f"val loss : {val_loss} | val_exact_match_acc acc: {val_exact_match_acc} | val_prefix_match_acc: {val_prefix_match_acc}")
+            print(
+                f"val loss : {val_loss} | val_exact_match_acc acc: {val_exact_match_acc} | val_prefix_match_acc: {val_prefix_match_acc}")
+            all_val_loss.append(val_loss)
+            all_val_exact_match_acc.append(val_exact_match_acc)
+            all_val_prefix_match_acc.append(val_prefix_match_acc)
 
-    # ================== TODO: CODE HERE ================== #
+    # ===================================================== #
     # Task: Implement some code to keep track of the model training and
     # evaluation loss. Use the matplotlib library to plot
-    # 3 figures for 1) training loss, 2) validation loss, 3) validation accuracy
+    # 4 figures for 1) training loss, 2) training accuracy, 3) validation loss, 4) validation accuracy
     # ===================================================== #
-
+    output_result_figure(args, "output_graphs/training_loss.png", all_train_loss, "Training Loss", False)
+    output_result_figure(args, "output_graphs/training_acc(exact_match).png", all_train_exact_match_acc,
+                         "Training Accuracy (exact match)", False)
+    output_result_figure(args, "output_graphs/training_acc(prefix_match).png", all_train_prefix_match_acc,
+                         "Training Accuracy (prefix match)", False)
+    output_result_figure(args, "output_graphs/validation_loss.png", all_val_loss, "Validation Loss", True)
+    output_result_figure(args, "output_graphs/validation_acc(exact_match).png", all_val_exact_match_acc,
+                         "Validation Training Accuracy (exact match)", True)
+    output_result_figure(args, "output_graphs/validation_acc(prefix_match).png", all_val_prefix_match_acc,
+                         "Validation Training Accuracy (prefix match)", True)
 
 def main(args):
     device = get_device(args.force_cpu)
@@ -269,7 +295,7 @@ def main(args):
     criterion, optimizer = setup_optimizer(args, model, device)
 
     if args.eval:
-        val_loss, val_acc = validate(
+        val_loss, val_exact_match_acc, val_prefix_match_acc = validate(
             args,
             model,
             loaders["val"],
