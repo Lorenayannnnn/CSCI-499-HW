@@ -273,7 +273,7 @@ if __name__ == "__main__":
         "--model_output_dir", type=str, help="where to save model outputs"
     )
     parser.add_argument(
-        "--batch_size", type=int, default=32, help="size of each batch in loader"
+        "--batch_size", type=int, default=16, help="size of each batch in loader"
     )
     parser.add_argument("--force_cpu", action="store_true", help="debug mode")
     parser.add_argument("--eval", action="store_true", help="run eval")
@@ -281,11 +281,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--val_every", default=5, help="number of epochs between every eval loop"
     )
+    parser.add_argument(
+        "--teacher_forcing", default=False, help="whether use teacher_forcing"
+    )
 
-    # ================== TODO: CODE HERE ================== #
-    # Task (optional): Add any additional command line
-    # parameters you may need here
-    # ===================================================== #
     args = parser.parse_args()
 
     main(args)

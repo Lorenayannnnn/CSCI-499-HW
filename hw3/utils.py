@@ -72,11 +72,13 @@ def build_output_tables(train):
             a, t = outseq
             actions.add(a)
             targets.add(t)
-    # Save space for STOP indicating the end of the episode
-    actions_to_index = {a: i+1 for i, a in enumerate(actions)}
-    targets_to_index = {t: i+1 for i, t in enumerate(targets)}
-    actions_to_index["A_STOP"] = 0
-    targets_to_index["T_STOP"] = 0
+    # Save space for START and STOP indicating the start and end of an episode
+    actions_to_index = {a: i+2 for i, a in enumerate(actions)}
+    targets_to_index = {t: i+2 for i, t in enumerate(targets)}
+    actions_to_index["A_START"] = 0
+    actions_to_index["T_START"] = 0
+    actions_to_index["A_STOP"] = 1
+    targets_to_index["T_STOP"] = 1
     index_to_actions = {actions_to_index[a]: a for a in actions_to_index}
     index_to_targets = {targets_to_index[t]: t for t in targets_to_index}
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
@@ -113,7 +115,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     # Maximum number of action-target pairs of 1 episode among all
     max_action_target_pair_len = 0
     for (idx, episode) in enumerate(training_data):
-        episode_labels = []
+        episode_labels = [actions_to_index["A_START"], targets_to_index["T_STOP"]]
         jdx = 0
         for entry in episode:
             processed_instruction = preprocess_string(entry[0])
