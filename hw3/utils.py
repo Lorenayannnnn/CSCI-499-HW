@@ -36,23 +36,26 @@ def build_tokenizer_table(train, vocab_size=1000):
     padded_lens = []
     inst_count = 0
     for episode in train:
+        padded_len = 2  # start/end
         for inst, _ in episode:
             inst = preprocess_string(inst)
-            padded_len = 2  # start/end
             for word in inst.lower().split():
                 if len(word) > 0:
                     word_list.append(word)
                     padded_len += 1
-            padded_lens.append(padded_len)
+            padded_len += 1     # <sep>
+        padded_lens.append(padded_len)
     corpus = Counter(word_list)
     corpus_ = sorted(corpus, key=corpus.get, reverse=True)[
-        : vocab_size - 4
+        : vocab_size - 5
     ]  # save room for <pad>, <start>, <end>, and <unk>
-    vocab_to_index = {w: i + 4 for i, w in enumerate(corpus_)}
+    vocab_to_index = {w: i + 5 for i, w in enumerate(corpus_)}
     vocab_to_index["<pad>"] = 0
     vocab_to_index["<start>"] = 1
     vocab_to_index["<end>"] = 2
     vocab_to_index["<unk>"] = 3
+    # <sep> token for separating instructions of 1 episode
+    vocab_to_index["<sep>"] = 4
     index_to_vocab = {vocab_to_index[w]: w for w in vocab_to_index}
     return (
         vocab_to_index,
@@ -69,8 +72,11 @@ def build_output_tables(train):
             a, t = outseq
             actions.add(a)
             targets.add(t)
-    actions_to_index = {a: i for i, a in enumerate(actions)}
-    targets_to_index = {t: i for i, t in enumerate(targets)}
+    # Save space for STOP indicating the end of the episode
+    actions_to_index = {a: i+1 for i, a in enumerate(actions)}
+    targets_to_index = {t: i+1 for i, t in enumerate(targets)}
+    actions_to_index["A_STOP"] = 0
+    targets_to_index["T_STOP"] = 0
     index_to_actions = {actions_to_index[a]: a for a in actions_to_index}
     index_to_targets = {targets_to_index[t]: t for t in targets_to_index}
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
@@ -89,3 +95,69 @@ def prefix_match(predicted_labels, gt_labels):
     pm = (1.0 / seq_length) * i
 
     return pm
+
+
+def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dict, targets_to_index: dict,
+                seq_len: int):
+    """
+    training_data: list of list of (instructions and corresponding pairs of targets & actions)
+    """
+    n_episodes = len(training_data)
+    encoded_episodes = np.zeros((n_episodes, seq_len), dtype=np.int32)
+    # Store pairs of action index and target index of instructions of all episodes
+    encoded_labels = []
+
+    n_early_cutoff = 0
+    n_unks = 0
+    n_tks = 0
+    # Maximum number of action-target pairs of 1 episode among all
+    max_action_target_pair_len = 0
+    for (idx, episode) in enumerate(training_data):
+        episode_labels = []
+        jdx = 0
+        for entry in episode:
+            processed_instruction = preprocess_string(entry[0])
+            action = entry[1][0]
+            target = entry[1][1]
+
+            for word in processed_instruction.split():
+                if len(word) > 0:
+                    encoded_episodes[idx][jdx] = vocab_to_index[word] if word in vocab_to_index else vocab_to_index[
+                        "<unk>"]
+                    n_unks += 1 if encoded_episodes[idx][jdx] == vocab_to_index["<unk>"] else 0
+                    n_tks += 1
+                    jdx += 1
+                    if jdx == seq_len - 1:
+                        break
+            episode_labels.append([actions_to_index[action], targets_to_index[target]])
+            if jdx == seq_len - 2:
+                n_early_cutoff += 1
+                encoded_episodes[idx][jdx] = vocab_to_index["<sep>"]
+                encoded_episodes[idx][jdx+1] = vocab_to_index["<end>"]
+                break
+            elif jdx == seq_len - 1:
+                n_early_cutoff += 1
+                encoded_episodes[idx][jdx] = vocab_to_index["<end>"]
+                break
+            encoded_episodes[idx][jdx] = vocab_to_index["<sep>"]
+            jdx += 1
+        # Append STOP indicating the end of an episode
+        episode_labels.append([actions_to_index["A_STOP"], targets_to_index["T_STOP"]])
+        encoded_labels.append(episode_labels)
+        max_action_target_pair_len = max(max_action_target_pair_len, len(episode_labels))
+
+    # "Pad" all encoded_labels to max_action_target_pair_len with
+    # [actions_to_index["A_STOP"], targets_to_index["T_STOP"]]
+    for index, episode_label in enumerate(encoded_labels):
+        encoded_labels[index].extend([[actions_to_index["A_STOP"], targets_to_index["T_STOP"]]] * (
+                    max_action_target_pair_len - len(episode_label)))
+
+    print(
+        "INFO: had to represent %d/%d (%.4f) tokens as unk with vocab limit %d"
+        % (n_unks, n_tks, n_unks / n_tks, len(vocab_to_index))
+    )
+    print(
+        "INFO: cut off %d instances at len %d before true ending"
+        % (n_early_cutoff, seq_len)
+    )
+    return encoded_episodes, encoded_labels

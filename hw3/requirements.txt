@@ -1,3 +1,5 @@
+matplotlib
 torch
-tqdm
 sklearn
+numpy
+tqdm

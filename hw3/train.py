@@ -1,14 +1,18 @@
+import numpy as np
 import tqdm
 import torch
 import argparse
+import json
 from sklearn.metrics import accuracy_score
+from torch.utils.data import TensorDataset, DataLoader
 
 from utils import (
     get_device,
     preprocess_string,
     build_tokenizer_table,
     build_output_tables,
-    prefix_match
+    prefix_match,
+    encode_data,
 )
 
 
@@ -18,7 +22,7 @@ def setup_dataloader(args):
         - train_loader: torch.utils.data.Dataloader
         - val_loader: torch.utils.data.Dataloader
     """
-    # ================== TODO: CODE HERE ================== #
+    # ================== TODO: CHECK ================== #
     # Task: Load the training data from provided json file.
     # Perform some preprocessing to tokenize the natural
     # language instructions and labels. Split the data into
@@ -27,12 +31,35 @@ def setup_dataloader(args):
 
     # Hint: use the helper functions provided in utils.py
     # ===================================================== #
-    train_loader = None
-    val_loader = None
+    batch_size = args.batch_size
+    data_file = args.in_data_fn
+
+    # Load data from json file
+    file = open(data_file)
+    data = json.load(file)
+    # Read in training and validation data
+    training_data = [episode for episode in data["train"]]
+    validation_data = [episode for episode in data["valid_seen"]]
+
+    file.close()
+
+    vocab_to_index, index_to_vocab, len_cutoff = build_tokenizer_table(training_data)
+    actions_to_index, index_to_actions, targets_to_index, index_to_targets = build_output_tables(training_data)
+
+    train_episodes, train_labels = encode_data(training_data, vocab_to_index, actions_to_index, targets_to_index,
+                                               len_cutoff)
+    val_episodes, val_labels = encode_data(validation_data, vocab_to_index, actions_to_index, targets_to_index,
+                                           len_cutoff)
+    train_dataset = TensorDataset(torch.from_numpy(np.array(train_episodes)), torch.from_numpy(np.array(train_labels)))
+    val_dataset = TensorDataset(torch.from_numpy(np.array(val_episodes)), torch.from_numpy(np.array(val_labels)))
+
+    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
+    val_loader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
+
     return train_loader, val_loader
 
 
-def setup_model(args):
+def setup_model(args, device):
     """
     return:
         - model: YourOwnModelClass
@@ -208,11 +235,19 @@ def main(args):
     device = get_device(args.force_cpu)
 
     # get dataloaders
-    train_loader, val_loader, maps = setup_dataloader(args)
+    # train_loader, val_loader, maps = setup_dataloader(args)
+
+    # train_loader, val_loader, = setup_dataloader(args)
+    # torch.save(train_loader, "outputs/train_loader.pth")
+    # torch.save(val_loader, "outputs/val_loader.pth")
+
+    train_loader = torch.load("outputs/train_loader.pth")
+    val_loader = torch.load("outputs/val_loader.pth")
+
     loaders = {"train": train_loader, "val": val_loader}
 
     # build model
-    model = setup_model(args, maps, device)
+    model = setup_model(args, device)
     print(model)
 
     # get optimizer and loss functions
