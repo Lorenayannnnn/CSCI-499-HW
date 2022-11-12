@@ -77,7 +77,7 @@ def build_output_tables(train):
     actions_to_index = {a: i+2 for i, a in enumerate(actions)}
     targets_to_index = {t: i+2 for i, t in enumerate(targets)}
     actions_to_index["A_START"] = 0
-    actions_to_index["T_START"] = 0
+    targets_to_index["T_START"] = 0
     actions_to_index["A_STOP"] = 1
     targets_to_index["T_STOP"] = 1
     index_to_actions = {actions_to_index[a]: a for a in actions_to_index}
@@ -189,7 +189,7 @@ def parse_action_target_labels(labels):
         action_labels.extend(label[:, 0])
         target_labels.extend(label[:, 1])
 
-    return np.array(action_labels), np.array(target_labels)
+    return torch.tensor(np.array(action_labels)), torch.tensor(np.array(target_labels))
 
 
 def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_title: str, is_val: bool):

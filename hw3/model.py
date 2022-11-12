@@ -1,5 +1,6 @@
 
 import numpy as np
+import torch
 import torch.nn as nn
 
 
@@ -58,7 +59,7 @@ class Decoder(nn.Module):
         # lstm_out: [2 (action & target), batch_size, hidden_dim]
         # new_hidden: [1*num_layers, batch_size, hidden_dim]
         # new_cell: [1*num_layers, batch_size, hidden_dim]
-        lstm_out, (new_hidden, new_cell) = self.LSTM(embedding_out, hidden, cell)
+        lstm_out, (new_hidden, new_cell) = self.LSTM(embedding_out, (hidden, cell))
         # action_out: [batch_size, n_actions]
         action_output = self.action_fc(lstm_out[0])
         # target_output: [batch_size, n_targets]
@@ -100,28 +101,30 @@ class EncoderDecoder(nn.Module):
         labels = np.transpose(labels, axes=[1, 0, 2])
 
         # Store predicted distribution of action & target: [instruction_num, batch_size, n_actions/n_targets]
-        action_prob_dist = np.zeros((instruction_num, batch_size, self.n_actions))
-        target_prob_dist = np.zeros((instruction_num, batch_size, self.n_targets))
-        all_predicted_pairs = np.zeros((batch_size, instruction_num, 2))
+        action_prob_dist = torch.zeros((instruction_num, batch_size, self.n_actions))
+        target_prob_dist = torch.zeros((instruction_num, batch_size, self.n_targets))
+        all_predicted_pairs = np.zeros((instruction_num, 2, batch_size))
         # Corresponds to A_START and T_START tokens
-        predicted_pairs = np.zeros((2, batch_size))
+        predicted_pairs = torch.zeros((2, batch_size), dtype=torch.long)
         all_predicted_pairs[0] = predicted_pairs
         for i in range(1, instruction_num):
             action_output, target_output, hidden, cell = self.decoder(predicted_pairs, hidden, cell)
+            # Update predicted pair (depends on whether using teacher-forcing)
+            detach_action_output = action_output.detach()
+            target_output_output = target_output.detach()
+            predicted_action = np.argmax(detach_action_output.numpy(), axis=1)
+            predicted_target = np.argmax(target_output_output.numpy(), axis=1)
+            predicted_pairs = np.array([predicted_action, predicted_target])
             # Store result
             action_prob_dist[i] = action_output
             target_prob_dist[i] = target_output
-            # Update predicted pair (depends on whether using teacher-forcing)
-            predicted_action = np.argmax(action_output, axis=1)
-            predicted_target = np.argmax(target_output, axis=1)
-            predicted_pairs = [predicted_action, predicted_target]
             all_predicted_pairs[i] = predicted_pairs
             # Use true labels if teacher_forcing
             predicted_pairs = np.transpose(labels[i]) if self.teacher_forcing else np.array(predicted_pairs)
 
 
         return (
-            all_predicted_pairs.transpose([1, 0, 2]),
+            all_predicted_pairs.transpose([2, 0, 1]),
             action_prob_dist.reshape((action_prob_dist.shape[0]*action_prob_dist.shape[1], action_prob_dist.shape[2])),
             target_prob_dist.reshape((target_prob_dist.shape[0]*target_prob_dist.shape[1], target_prob_dist.shape[2]))
         )

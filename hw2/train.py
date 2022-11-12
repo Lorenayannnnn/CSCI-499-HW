@@ -253,7 +253,7 @@ def main(args):
     utils.output_result_figure(args, "output_graphs/training_loss.png", all_train_loss, "Training Loss", False)
     utils.output_result_figure(args, "output_graphs/training_acc.png", all_train_acc, "Training Accuracy", False)
     utils.output_result_figure(args, "output_graphs/validation_loss.png", all_val_loss, "Validation Loss", True)
-    utils.output_result_figure(args, "output_graphs/validation_acc.png", all_val_loss, "Validation Accuracy", True)
+    utils.output_result_figure(args, "output_graphs/validation_acc.png", all_val_acc, "Validation Accuracy", True)
 
     # save word vectors
     word_vec_file = os.path.join(args.outputs_dir, args.word_vector_fn)

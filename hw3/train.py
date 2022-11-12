@@ -5,6 +5,7 @@ import argparse
 import json
 from sklearn.metrics import accuracy_score
 from torch.utils.data import TensorDataset, DataLoader
+import os
 
 from utils import (
     get_device,
@@ -253,37 +254,42 @@ def train(args, model, loaders, optimizer, criterion, device):
             all_val_loss.append(val_loss)
             all_val_exact_match_acc.append(val_exact_match_acc)
             all_val_prefix_match_acc.append(val_prefix_match_acc)
+            ckpt_file = os.path.join(args.outputs_dir, "s2s_model.ckpt")
+            print("saving model to ", ckpt_file)
+            torch.save(model, ckpt_file)
 
     # ===================================================== #
     # Task: Implement some code to keep track of the model training and
     # evaluation loss. Use the matplotlib library to plot
     # 4 figures for 1) training loss, 2) training accuracy, 3) validation loss, 4) validation accuracy
     # ===================================================== #
-    output_result_figure(args, "output_graphs/training_loss.png", all_train_loss, "Training Loss", False)
-    output_result_figure(args, "output_graphs/training_acc(exact_match).png", all_train_exact_match_acc,
+    output_result_figure(args, "outputs/experiments/s2s/training_loss.png", all_train_loss, "Training Loss", False)
+    output_result_figure(args, "outputs/experiments/s2s/training_acc(exact_match).png", all_train_exact_match_acc,
                          "Training Accuracy (exact match)", False)
-    output_result_figure(args, "output_graphs/training_acc(prefix_match).png", all_train_prefix_match_acc,
+    output_result_figure(args, "outputs/experiments/s2s/training_acc(prefix_match).png", all_train_prefix_match_acc,
                          "Training Accuracy (prefix match)", False)
-    output_result_figure(args, "output_graphs/validation_loss.png", all_val_loss, "Validation Loss", True)
-    output_result_figure(args, "output_graphs/validation_acc(exact_match).png", all_val_exact_match_acc,
+    output_result_figure(args, "outputs/experiments/s2s/validation_loss.png", all_val_loss, "Validation Loss", True)
+    output_result_figure(args, "outputs/experiments/s2s/validation_acc(exact_match).png", all_val_exact_match_acc,
                          "Validation Training Accuracy (exact match)", True)
-    output_result_figure(args, "output_graphs/validation_acc(prefix_match).png", all_val_prefix_match_acc,
+    output_result_figure(args, "outputs/experiments/s2s/validation_acc(prefix_match).png", all_val_prefix_match_acc,
                          "Validation Training Accuracy (prefix match)", True)
 
 def main(args):
     device = get_device(args.force_cpu)
 
     # get dataloaders
-    # train_loader, val_loader, maps = setup_dataloader(args)
-    train_loader, val_loader, n_vocab, n_actions, n_targets = setup_dataloader(args)
+    # train_loader, val_loader, n_vocab, n_actions, n_targets = setup_dataloader(args)
+    #
+    # torch.save(train_loader, "outputs/train_loader.pth")
+    # torch.save(val_loader, "outputs/val_loader.pth")
+    # return
 
-    print("n_vocab:", n_vocab)
-    print("n_actions:", n_actions)
-    print("n_targets:", n_targets)
+    n_vocab = 1000
+    n_actions = 10
+    n_targets = 82
 
-    for input, label in train_loader:
-        print(label)
-        return
+    train_loader = torch.load("outputs/train_loader.pth")
+    val_loader = torch.load("outputs/val_loader.pth")
 
     loaders = {"train": train_loader, "val": val_loader}
 
@@ -311,19 +317,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--in_data_fn", type=str, help="data file")
     parser.add_argument(
-        "--model_output_dir", type=str, help="where to save model outputs"
+        "--outputs_dir", type=str, help="where to save outputs"
     )
     parser.add_argument(
         "--batch_size", type=int, default=16, help="size of each batch in loader"
     )
     parser.add_argument("--force_cpu", action="store_true", help="debug mode")
     parser.add_argument("--eval", action="store_true", help="run eval")
-    parser.add_argument("--num_epochs", default=1000, help="number of training epochs")
+    parser.add_argument("--num_epochs", type=int, default=1000, help="number of training epochs")
     parser.add_argument(
-        "--val_every", default=5, help="number of epochs between every eval loop"
+        "--val_every", type=int, default=5, help="number of epochs between every eval loop"
     )
     parser.add_argument(
-        "--teacher_forcing", default=False, help="whether use teacher_forcing"
+        "--teacher_forcing", type=bool, default=False, help="whether use teacher_forcing"
     )
 
     args = parser.parse_args()
