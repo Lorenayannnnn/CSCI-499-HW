@@ -15,7 +15,8 @@ from utils import (
     exact_match,
     encode_data,
     parse_action_target_labels,
-    output_result_figure
+    output_result_figure,
+    get_seq_lens
 )
 
 from model import EncoderDecoder
@@ -27,7 +28,7 @@ def setup_dataloader(args):
         - train_loader: torch.utils.data.Dataloader
         - val_loader: torch.utils.data.Dataloader
     """
-    # ================== TODO: CHECK ================== #
+    # ===================================================== #
     # Task: Load the training data from provided json file.
     # Perform some preprocessing to tokenize the natural
     # language instructions and labels. Split the data into
@@ -147,9 +148,11 @@ def train_epoch(
         # put model inputs to device
         inputs, labels = inputs.to(device), labels.to(device)
         action_labels, target_labels = parse_action_target_labels(labels)
+        action_labels, target_labels = action_labels.to(device), target_labels.to(device)
+        seq_lens = get_seq_lens(inputs)
         # calculate the loss and train accuracy and perform backprop
         # NOTE: feel free to change the parameters to the model forward pass here + outputs
-        all_predicted_pairs, action_prob_dist, target_prob_dist = model(inputs, labels)
+        all_predicted_pairs, action_prob_dist, target_prob_dist = model(inputs, labels, seq_lens)
 
         action_loss = criterion(action_prob_dist, action_labels)
         target_loss = criterion(target_prob_dist, target_labels)
@@ -168,6 +171,7 @@ def train_epoch(
         # exact match and prefix exact match. You can also try to compute longest common subsequence.
         # Feel free to change the input to these functions.
         """
+
         exact_match_score = exact_match(all_predicted_pairs, labels)
         prefix_match_score = prefix_match(all_predicted_pairs, labels)
 
@@ -280,6 +284,8 @@ def main(args):
     # get dataloaders
     # train_loader, val_loader, n_vocab, n_actions, n_targets = setup_dataloader(args)
     #
+    # print(n_vocab, n_actions, n_targets)
+    #
     # torch.save(train_loader, "outputs/train_loader.pth")
     # torch.save(val_loader, "outputs/val_loader.pth")
     # return
@@ -290,6 +296,12 @@ def main(args):
 
     train_loader = torch.load("outputs/train_loader.pth")
     val_loader = torch.load("outputs/val_loader.pth")
+
+    # for input, label in train_loader:
+    #     seq_lens = get_seq_lens(input)
+    #     print(input[0])
+    #     print(seq_lens)
+    #     return
 
     loaders = {"train": train_loader, "val": val_loader}
 
@@ -335,3 +347,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
+    # embedding_test = torch.nn.Embedding(5, 15)
+    # inputs = torch.tensor(np.array([[1, 2, 3, 4], [3, 4, 2, 1], [0, 1, 3, 2]]))
+    # inputs = np.transpose(inputs)
+    # print("input shape:", inputs.shape)
+    # output = embedding_test(inputs)
+    # print("embedding output shape:", output.shape)
+    # LSTM_layer = torch.nn.LSTM(input_size=15, hidden_size=32, num_layers=2, dropout=0.1)
+    # lstm_out, (hidden, cell) = LSTM_layer(output)
+    # print(len(lstm_out), len(lstm_out[0]), len(lstm_out[0][0]))
+    # print("hidden shape:", hidden.shape)
+    #
+    # action_fc = torch.nn.Linear(in_features=32, out_features=10)
+    # fc_out = action_fc(lstm_out[0])
+    # print("fc_out shape:", fc_out.shape)

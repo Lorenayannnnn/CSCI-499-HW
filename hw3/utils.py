@@ -44,19 +44,16 @@ def build_tokenizer_table(train, vocab_size=1000):
                 if len(word) > 0:
                     word_list.append(word)
                     padded_len += 1
-            padded_len += 1     # <sep>
         padded_lens.append(padded_len)
     corpus = Counter(word_list)
     corpus_ = sorted(corpus, key=corpus.get, reverse=True)[
-        : vocab_size - 5
+        : vocab_size - 4
     ]  # save room for <pad>, <start>, <end>, and <unk>
-    vocab_to_index = {w: i + 5 for i, w in enumerate(corpus_)}
+    vocab_to_index = {w: i + 4 for i, w in enumerate(corpus_)}
     vocab_to_index["<pad>"] = 0
     vocab_to_index["<start>"] = 1
     vocab_to_index["<end>"] = 2
     vocab_to_index["<unk>"] = 3
-    # <sep> token for separating instructions of 1 episode
-    vocab_to_index["<sep>"] = 4
     index_to_vocab = {vocab_to_index[w]: w for w in vocab_to_index}
     return (
         vocab_to_index,
@@ -85,6 +82,7 @@ def build_output_tables(train):
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
 
 def prefix_match(predicted_labels, gt_labels):
+    # predicted_labels: [batch_size, seq_length, 2]
     # predicted and gt are sequences of (action, target) labels, the sequences should be of same length
     # computes how many matching (action, target) labels there are between predicted and gt
     # is a number between 0 and 1 
@@ -92,10 +90,11 @@ def prefix_match(predicted_labels, gt_labels):
     seq_length = len(gt_labels[0])
     pm = 0
     for i in range(batch_size):
+        j = 0
         for j in range(seq_length):
-            if predicted_labels[i] != gt_labels[i]:
+            if predicted_labels[i][j] != gt_labels[i][j]:
                 break
-        pm += (1.0 / seq_length) * j
+        pm += j / seq_length
 
     return pm
 
@@ -107,6 +106,17 @@ def exact_match(predicted_labels, gt_labels):
         if predicted_labels[i] == gt_labels[i]:
             em += 1
     return em
+
+
+def num_of_match(predicted_labels, gt_labels):
+    batch_size = len(gt_labels)
+    seq_len = len(gt_labels[0])
+    match_score = 0
+    for i in range(batch_size):
+        for j in range(seq_len):
+            if predicted_labels[i][j] == gt_labels[i][j]:
+                match_score += 1
+    return match_score
 
 
 def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dict, targets_to_index: dict,
@@ -126,7 +136,8 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     max_action_target_pair_len = 0
     for (idx, episode) in enumerate(training_data):
         episode_labels = [[actions_to_index["A_START"], targets_to_index["T_START"]]]
-        jdx = 0
+        encoded_episodes[idx][0] = vocab_to_index["<start>"]
+        jdx = 1
         for entry in episode:
             processed_instruction = preprocess_string(entry[0])
             action = entry[1][0]
@@ -142,17 +153,10 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
                     if jdx == seq_len - 1:
                         break
             episode_labels.append([actions_to_index[action], targets_to_index[target]])
-            if jdx == seq_len - 2:
+            if jdx == seq_len - 1:
                 n_early_cutoff += 1
-                encoded_episodes[idx][jdx] = vocab_to_index["<sep>"]
-                encoded_episodes[idx][jdx+1] = vocab_to_index["<end>"]
                 break
-            elif jdx == seq_len - 1:
-                n_early_cutoff += 1
-                encoded_episodes[idx][jdx] = vocab_to_index["<end>"]
-                break
-            encoded_episodes[idx][jdx] = vocab_to_index["<sep>"]
-            jdx += 1
+        encoded_episodes[idx][jdx] = vocab_to_index["<end>"]
         # Append STOP indicating the end of an episode
         episode_labels.append([actions_to_index["A_STOP"], targets_to_index["T_STOP"]])
         encoded_labels.append(episode_labels)
@@ -203,3 +207,11 @@ def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_t
     figure.show()
 
     figure.savefig(output_file_name)
+
+
+def get_seq_lens(batch_input):
+    batch_size = len(batch_input)
+    batch_seq_lens = np.zeros(batch_size)
+    for idx, i_input in enumerate(batch_input):
+        batch_seq_lens[idx] = np.where(i_input == 0)[0][0] if len(np.where(i_input == 0)[0]) > 0 else len(i_input)
+    return batch_seq_lens
