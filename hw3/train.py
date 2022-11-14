@@ -3,7 +3,6 @@ import tqdm
 import torch
 import argparse
 import json
-from sklearn.metrics import accuracy_score
 from torch.utils.data import TensorDataset, DataLoader
 import os
 
@@ -15,13 +14,13 @@ from utils import (
     exact_match,
     encode_data,
     parse_action_target_labels,
-    get_seq_lens,
-    num_of_match,
+    get_episode_seq_lens,
+    percentage_match,
     output_acc_graph,
-    output_loss_graph
+    output_loss_graph, get_labels_seq_lens
 )
 
-from model import EncoderDecoder
+from hw3.models.EncoderDecoder import EncoderDecoder
 
 
 def setup_dataloader(args):
@@ -156,7 +155,7 @@ def train_epoch(
         inputs, labels = inputs.to(device), labels.to(device)
         action_labels, target_labels = parse_action_target_labels(labels)
         action_labels, target_labels = action_labels.long().to(device), target_labels.long().to(device)
-        seq_lens = get_seq_lens(inputs)
+        seq_lens = get_episode_seq_lens(inputs)
         # calculate the loss and train accuracy and perform backprop
         # NOTE: feel free to change the parameters to the model forward pass here + outputs
         all_predicted_actions, all_predicted_targets, action_prob_dist, target_prob_dist = model(inputs, labels,
@@ -180,12 +179,13 @@ def train_epoch(
         # exact match and prefix exact match. You can also try to compute longest common subsequence.
         # Feel free to change the input to these functions.
         """
+        labels_lens = get_labels_seq_lens(labels)
         action_exact_match_score = exact_match(all_predicted_actions, action_labels)
-        action_prefix_match_score = prefix_match(all_predicted_actions, action_labels)
-        action_num_of_match_score = num_of_match(all_predicted_actions, action_labels)
+        action_prefix_match_score = prefix_match(all_predicted_actions, action_labels, labels_lens)
+        action_num_of_match_score = percentage_match(all_predicted_actions, action_labels)
         target_exact_match_score = exact_match(all_predicted_targets, target_labels)
-        target_prefix_match_score = prefix_match(all_predicted_targets, target_labels)
-        target_num_of_match_score = num_of_match(all_predicted_targets, target_labels)
+        target_prefix_match_score = prefix_match(all_predicted_targets, target_labels, labels_lens)
+        target_num_of_match_score = percentage_match(all_predicted_targets, target_labels)
 
         # logging
         print("---------------- Action ----------------")

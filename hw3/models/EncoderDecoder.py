@@ -1,5 +1,4 @@
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
@@ -176,3 +175,6 @@ class Attention(nn.Module):
         # [batch_size, seq_len]
         final_hidden = torch.bmm(encoder_hidden_outputs.transpose(1, 2), weights).squeeze(2)
         return final_hidden
+
+
+

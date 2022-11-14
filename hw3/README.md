@@ -16,7 +16,7 @@ For example, the instructions for [an example task](https://askforalfred.com/?vi
 | Turn around, go straight all the way to the counter to the left of the sink, turn right to face the sink.                            | GotoLocation | sinkbasin  |
 | Put the mug in the sink.                                                                                                             | PutObject    | sinkbasin  |
 
-Initially, you should implement a encoder-decoder seq2seq model that encodes the low-level instructions into a context vector which is decoded autoregressively into the high-level instruction. Then you will implement an attention mechanism that allows the decoder to attend to each hidden state of the encoder model when making predictions. Finally, you will compare this against a Transformer-based model. You may use any functionality in the HuggingFace library for these implementations. (That is, we do not expect you to implement RNNs, LSTMs, Attention layers, Tranformers, or any other architectural component from scratch.)
+Initially, you should implement an encoder-decoder seq2seq model that encodes the low-level instructions into a context vector which is decoded autoregressively into the high-level instruction. Then you will implement an attention mechanism that allows the decoder to attend to each hidden state of the encoder model when making predictions. Finally, you will compare this against a Transformer-based model. You may use any functionality in the HuggingFace library for these implementations. (That is, we do not expect you to implement RNNs, LSTMs, Attention layers, Tranformers, or any other architectural component from scratch.)
 
 We provide starter code that tokenizes the instructions and provides dictionaries mapping instruction tokens to their numerical indexes. It's up to you to write methods that convert the inputs and outputs to tensors, an encoder-decoder attention model that processes input tensors to produce predictions, and the training loop to adjust the parameters of the model based on its predictions versus the ground truth, target outputs. Note, you will need to implement some function for decoding the target text given the context vector. For this decoding to work, you will need to append special tokens to the input to mark the beginning of sentence (\<BOS\>) and end of sentence (\<EOS\>). This is a standard practice for decoder models. 
 
@@ -38,7 +38,7 @@ export PYTHONPATH=$PWD:$PYTHONPATH
 virtualenv -p $(which python3) ./hw3
 
 # activate virtualenv
-source ./hw1/bin/activate
+source ./hw3/bin/activate
 
 # install packages
 pip3 install -r requirements.txt

@@ -81,23 +81,23 @@ def build_output_tables(train):
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
 
 
-def prefix_match(predicted_labels, gt_labels):
+def prefix_match(predicted_labels, gt_labels, labels_len):
     """
-    params dim: [batch_size, instruction_num]
+    predicted_labels/gt_labels: [batch_size, instruction_num]
+    labels_len (how long each output instruction sequence is (exclude the padding): [batch_size]
     """
     # predicted_labels: [batch_size, seq_length, 2]
     # predicted and gt are sequences of (action, target) labels, the sequences should be of same length
     # computes how many matching (action, target) labels there are between predicted and gt
     # is a number between 0 and 1
     batch_size = len(gt_labels)
-    seq_length = len(gt_labels[0])
     pm = 0.0
     for i in range(batch_size):
         j = 0
-        for j in range(seq_length):
+        for j in range(labels_len[i]):
             if predicted_labels[i][j] != gt_labels[i][j]:
                 break
-        pm += j / seq_length
+        pm += j / labels_len[i]
 
     return pm/batch_size
 
@@ -122,7 +122,7 @@ def exact_match(predicted_labels, gt_labels):
     return em/batch_size
 
 
-def num_of_match(predicted_labels, gt_labels):
+def percentage_match(predicted_labels, gt_labels):
     """
     params dim: [batch_size, instruction_num]
     """
@@ -131,6 +131,7 @@ def num_of_match(predicted_labels, gt_labels):
     total_match_score = 0.0
     for i in range(batch_size):
         match_score = 0
+        j = 0
         for j in range(seq_len):
             if predicted_labels[i][j] == gt_labels[i][j]:
                 match_score += 1
@@ -217,11 +218,20 @@ def parse_action_target_labels(labels):
     return action_labels, target_labels
 
 
-def get_seq_lens(batch_input):
+def get_episode_seq_lens(batch_input):
     batch_size = len(batch_input)
     batch_seq_lens = np.zeros(batch_size)
     for idx, i_input in enumerate(batch_input):
         batch_seq_lens[idx] = np.where(i_input == 0)[0][0] if len(np.where(i_input == 0)[0]) > 0 else len(i_input)
+    return batch_seq_lens
+
+
+def get_labels_seq_lens(batch_labels):
+    batch_size = len(batch_labels)
+    batch_seq_lens = np.zeros(batch_size)
+    for idx, i_label in enumerate(batch_labels):
+        i_label = torch.transpose(i_label, 0, 1)
+        batch_seq_lens[idx] = np.where(i_label[0] == 0)[0][0] if len(np.where(i_label[0] == 0)[0]) > 0 else len(i_label[0])
     return batch_seq_lens
 
 
