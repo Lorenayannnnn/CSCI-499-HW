@@ -135,10 +135,10 @@ class EncoderDecoder(nn.Module):
             predicted_target = torch.argmax(target_output, dim=1)
             predicted_pairs = torch.concat((predicted_action, predicted_target)).reshape(2, batch_size)
             # Store result
-            action_prob_dist[i-1] = action_output
-            target_prob_dist[i-1] = target_output
-            all_predicted_actions[i-1] = predicted_action
-            all_predicted_targets[i-1] = predicted_target
+            action_prob_dist[i] = action_output
+            target_prob_dist[i] = target_output
+            all_predicted_actions[i] = predicted_action
+            all_predicted_targets[i] = predicted_target
             # Use true labels if teacher_forcing
             predicted_pairs = torch.transpose(labels[i], 0, 1) if teacher_forcing else predicted_pairs
 

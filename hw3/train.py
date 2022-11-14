@@ -108,6 +108,7 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, voca
         dropout_rate = 0.3
         model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
                                args.teacher_forcing, args.encoder_decoder_attention)
+        model = torch.load(os.path.join(args.outputs_dir, args.model_output_filename))
     return model
 
 
@@ -121,7 +122,7 @@ def setup_optimizer(args, model, device):
     # Task: Initialize the loss function for action predictions
     # and target predictions. Also initialize your optimizer.
     # ===================================================== #
-    criterion = torch.nn.CrossEntropyLoss(ignore_index=1).to(device)
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=2).to(device)
     optimizer = torch.optim.Adam(params=model.parameters())
 
     return criterion, optimizer
@@ -188,6 +189,8 @@ def train_epoch(
             loss.backward()
             optimizer.step()
 
+        # print("all_predicted_actions:", all_predicted_actions)
+        # print("action_labels:", action_labels)
         labels_lens = get_labels_seq_lens(labels)
         action_exact_match_score = exact_match(all_predicted_actions, action_labels)
         action_prefix_match_score = prefix_match(all_predicted_actions, action_labels, labels_lens)
@@ -196,16 +199,16 @@ def train_epoch(
         target_prefix_match_score = prefix_match(all_predicted_targets, target_labels, labels_lens)
         target_num_of_match_score = percentage_match(all_predicted_targets, target_labels)
 
-        # logging
-        print("---------------- Action ----------------")
-        print(f"loss: {action_loss} | exact match: {action_exact_match_score} | prefix match: {action_prefix_match_score} | num of match: {action_num_of_match_score}")
+        # logging TODO
+        # print("---------------- Action ----------------")
+        # print(f"loss: {action_loss} | exact match: {action_exact_match_score} | prefix match: {action_prefix_match_score} | num of match: {action_num_of_match_score}")
         epoch_action_loss += action_loss
         epoch_action_exact_match_acc += action_exact_match_score
         epoch_action_prefix_match_acc += action_prefix_match_score
         epoch_action_num_of_match_acc += action_num_of_match_score
-        print("---------------- Target ----------------")
-        print(
-            f"loss: {target_loss} | exact match: {target_exact_match_score} | prefix match: {target_prefix_match_score} | num of match: {target_num_of_match_score}")
+        # print("---------------- Target ----------------")
+        # print(
+        #     f"loss: {target_loss} | exact match: {target_exact_match_score} | prefix match: {target_prefix_match_score} | num of match: {target_num_of_match_score}")
         epoch_target_loss += target_loss
         epoch_target_exact_match_acc += target_exact_match_score
         epoch_target_prefix_match_acc += target_prefix_match_score
@@ -338,7 +341,7 @@ def train(args, model, loaders, optimizer, criterion, device):
             all_val_target_num_of_match_acc.append(val_target_num_of_match_acc)
 
             # Save model
-            ckpt_file = os.path.join(args.outputs_dir, "s2s_model.ckpt")
+            ckpt_file = os.path.join(args.outputs_dir, args.model_output_filename)
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
 
@@ -397,6 +400,9 @@ if __name__ == "__main__":
     parser.add_argument("--in_data_fn", type=str, help="data file")
     parser.add_argument(
         "--outputs_dir", type=str, help="where to save outputs"
+    )
+    parser.add_argument(
+        "--model_output_filename", type=str, help="output filename of the model"
     )
     parser.add_argument(
         "--batch_size", type=int, default=16, help="size of each batch in loader"

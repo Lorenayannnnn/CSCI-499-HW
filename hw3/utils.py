@@ -97,18 +97,21 @@ def prefix_match(predicted_labels, gt_labels, labels_len):
     # computes how many matching (action, target) labels there are between predicted and gt
     # is a number between 0 and 1
     batch_size = len(gt_labels)
+    seq_len = len(gt_labels[0])
     pm = 0.0
     for i in range(batch_size):
         j = 0
-        for j in range(labels_len[i]):
-            if predicted_labels[i][j] != gt_labels[i][j]:
+        for j in range(1, seq_len):
+            if predicted_labels[i][j] != gt_labels[i][j] or (predicted_labels[i][j] == 1 and gt_labels[i][j] == 1):
                 break
-        pm += j / labels_len[i]
+        pm += j / labels_len[i] if j <= labels_len[i] else j / seq_len
 
     return pm/batch_size
 
 
 def exact_match(predicted_labels, gt_labels):
+    print("predicted_labels", predicted_labels)
+    print("gt_labels", gt_labels)
     """
     params dim: [batch_size, instruction_num]
     """
@@ -120,9 +123,12 @@ def exact_match(predicted_labels, gt_labels):
     em = 0.0
     for i in range(batch_size):
         same = True
-        for j in range(seq_len):
+        for j in range(1, seq_len):
             if predicted_labels[i][j] != gt_labels[i][j]:
                 same = False
+                break
+            elif predicted_labels[i][j] == 1 and gt_labels[i][j] == 1:
+                # STOP token
                 break
         em += 1 if same else 0
     return em/batch_size
@@ -138,10 +144,11 @@ def percentage_match(predicted_labels, gt_labels):
     for i in range(batch_size):
         match_score = 0
         j = 0
-        for j in range(seq_len):
+        for j in range(1, seq_len):
             if predicted_labels[i][j] == gt_labels[i][j]:
                 match_score += 1
-            if predicted_labels[i][j] == 0 and gt_labels[i][j] == 0:
+            if predicted_labels[i][j] == 1 and gt_labels[i][j] == 1:
+                # STOP token
                 break
         total_match_score += match_score / j
     return total_match_score/batch_size
