@@ -6,6 +6,7 @@ import json
 from torch.utils.data import TensorDataset, DataLoader
 import os
 
+from hw3.models.Seq2SeqBert import Seq2SeqBert
 from utils import (
     get_device,
     build_tokenizer_table,
@@ -51,25 +52,27 @@ def setup_dataloader(args):
     file.close()
 
     vocab_to_index, index_to_vocab, len_cutoff = build_tokenizer_table(training_data)
-    actions_to_index, index_to_actions, targets_to_index, index_to_targets = build_output_tables(training_data)
+    actions_to_index, index_to_actions, targets_to_index, index_to_targets = build_output_tables(training_data,
+                                                                                                 run_seq2seq_bert=args.run_seq_2_seq_bert)
 
     train_episodes, train_labels = encode_data(training_data, vocab_to_index, actions_to_index, targets_to_index,
-                                               len_cutoff)
+                                               len_cutoff, run_seq2seq_bert=args.run_seq_2_seq_bert)
     val_episodes, val_labels = encode_data(validation_data, vocab_to_index, actions_to_index, targets_to_index,
-                                           len_cutoff)
+                                           len_cutoff, run_seq2seq_bert=args.run_seq_2_seq_bert)
     train_dataset = TensorDataset(torch.from_numpy(np.array(train_episodes)), torch.from_numpy(np.array(train_labels)))
     val_dataset = TensorDataset(torch.from_numpy(np.array(val_episodes)), torch.from_numpy(np.array(val_labels)))
 
     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
     val_loader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
 
-    return train_loader, val_loader, len(vocab_to_index), len(actions_to_index), len(targets_to_index), len_cutoff
+    return train_loader, val_loader, len(vocab_to_index), len(actions_to_index), len(
+        targets_to_index), len_cutoff, vocab_to_index, actions_to_index
 
 
-def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int):
+def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, vocab_to_index: dict, actions_to_index: dict):
     """
     return:
-        - model: EncoderDecoder
+        - model: EncoderDecoder or Seq2SeqBert
     """
     # ===================================================== #
     # Task: Initialize your model. Your model should be an
@@ -88,12 +91,23 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int):
     # of feeding the model prediction into the recurrent model,
     # you will give the embedding of the target token.
     # ===================================================== #
-    embedding_dim = 128
-    hidden_dim = 64
-    n_hidden_layer = 2
-    dropout_rate = 0.3
-    model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
-                           args.teacher_forcing, args.encoder_decoder_attention)
+    # model_name: str, input_bos_token_id: int, input_eos_token_id: int, output_bos_token_id: int,
+    # output_eos_token_id
+    if args.run_seq_2_seq_bert:
+        model_name = "bert-base-uncased"
+        model = Seq2SeqBert(
+            model_name=model_name,
+            input_bos_token_id=vocab_to_index['<start>'],
+            input_eos_token_id=vocab_to_index['<end>'],
+            output_eos_token_id=actions_to_index['A_STOP']
+        )
+    else:
+        embedding_dim = 128
+        hidden_dim = 64
+        n_hidden_layer = 2
+        dropout_rate = 0.3
+        model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
+                               args.teacher_forcing, args.encoder_decoder_attention)
     return model
 
 
@@ -355,14 +369,15 @@ def main(args):
     device = get_device(args.force_cpu)
 
     # get dataloaders
-    train_loader, val_loader, n_vocab, n_actions, n_targets, seq_len = setup_dataloader(args)
+    train_loader, val_loader, n_vocab, n_actions, n_targets, seq_len, vocab_to_index, actions_to_index = setup_dataloader(
+        args)
 
     print("n_vocab:", n_vocab, "n_actions", n_actions, "n_targets", n_targets)
 
     loaders = {"train": train_loader, "val": val_loader}
 
     # build model
-    model = setup_model(args, device, n_vocab, n_actions, n_targets)
+    model = setup_model(args, device, n_vocab, n_actions, n_targets, vocab_to_index, actions_to_index)
     print(model)
 
     # get optimizer and loss functions
@@ -401,6 +416,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--encoder_decoder_attention", type=bool, default=False, help="whether use encoder decoder attention"
+    )
+    parser.add_argument(
+        "--run_seq_2_seq_bert", type=bool, default=False, help="run seq2seq bert model"
     )
 
     args = parser.parse_args()

@@ -63,7 +63,7 @@ def build_tokenizer_table(train, vocab_size=1000):
     )
 
 
-def build_output_tables(train):
+def build_output_tables(train, run_seq2seq_bert=False):
     actions = set()
     targets = set()
     for episode in train:
@@ -71,11 +71,20 @@ def build_output_tables(train):
             a, t = outseq
             actions.add(a)
             targets.add(t)
-    # Save space for STOP indicating the end of an episode
-    actions_to_index = {a: i+1 for i, a in enumerate(actions)}
-    targets_to_index = {t: i+1 for i, t in enumerate(targets)}
-    actions_to_index["A_STOP"] = 0
-    targets_to_index["T_STOP"] = 0
+    if run_seq2seq_bert:
+        # Save space for START, STOP indicating the end of an episode
+        actions_to_index = {a: i + 2 for i, a in enumerate(actions)}
+        targets_to_index = {t: i + 2 for i, t in enumerate(targets)}
+        actions_to_index["A_START"] = 0
+        targets_to_index["T_START"] = 0
+        actions_to_index["A_STOP"] = 1
+        targets_to_index["T_STOP"] = 1
+    else:
+        # Save space for STOP indicating the end of an episode
+        actions_to_index = {a: i + 1 for i, a in enumerate(actions)}
+        targets_to_index = {t: i + 1 for i, t in enumerate(targets)}
+        actions_to_index["A_STOP"] = 0
+        targets_to_index["T_STOP"] = 0
     index_to_actions = {actions_to_index[a]: a for a in actions_to_index}
     index_to_targets = {targets_to_index[t]: t for t in targets_to_index}
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
@@ -142,7 +151,7 @@ def percentage_match(predicted_labels, gt_labels):
 
 
 def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dict, targets_to_index: dict,
-                seq_len: int):
+                seq_len: int, run_seq2seq_bert=False):
     """
     training_data: list of list of (instructions and corresponding pairs of targets & actions)
     """
@@ -157,7 +166,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     # Maximum number of action-target pairs of 1 episode among all
     max_action_target_pair_len = 0
     for (idx, episode) in enumerate(training_data):
-        episode_labels = []
+        episode_labels = [[actions_to_index["A_START"], targets_to_index["T_START"]]] if run_seq2seq_bert else []
         encoded_episodes[idx][0] = vocab_to_index["<start>"]
         jdx = 1
         for entry in episode:
