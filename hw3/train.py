@@ -15,8 +15,10 @@ from utils import (
     exact_match,
     encode_data,
     parse_action_target_labels,
-    output_result_figure,
-    get_seq_lens
+    get_seq_lens,
+    num_of_match,
+    output_acc_graph,
+    output_loss_graph
 )
 
 from model import EncoderDecoder
@@ -62,7 +64,7 @@ def setup_dataloader(args):
     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=batch_size)
     val_loader = DataLoader(val_dataset, shuffle=False, batch_size=batch_size)
 
-    return train_loader, val_loader, len(vocab_to_index), len(actions_to_index), len(targets_to_index)
+    return train_loader, val_loader, len(vocab_to_index), len(actions_to_index), len(targets_to_index), len_cutoff
 
 
 def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int):
@@ -92,7 +94,7 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int):
     n_hidden_layer = 2
     dropout_rate = 0.3
     model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
-                           args.teacher_forcing)
+                           args.teacher_forcing, args.encoder_decoder_attention)
     return model
 
 
@@ -138,22 +140,29 @@ def train_epoch(
     --> Implemented in the EncoderDecoder model
     """
 
-    epoch_loss = 0.0
-    epoch_exact_match_acc = 0.0
-    epoch_prefix_match_acc = 0.0
+    epoch_action_loss = 0.0
+    epoch_target_loss = 0.0
+    epoch_action_exact_match_acc = 0.0
+    epoch_action_prefix_match_acc = 0.0
+    epoch_action_num_of_match_acc = 0.0
+    epoch_target_exact_match_acc = 0.0
+    epoch_target_prefix_match_acc = 0.0
+    epoch_target_num_of_match_acc = 0.0
 
     # iterate over each batch in the dataloader
     # NOTE: you may have additional outputs from the loader __getitem__, you can modify this
-    for (inputs, labels) in loader:
+    for inputs, labels in loader:
         # put model inputs to device
         inputs, labels = inputs.to(device), labels.to(device)
         action_labels, target_labels = parse_action_target_labels(labels)
-        action_labels, target_labels = action_labels.to(device), target_labels.to(device)
+        action_labels, target_labels = action_labels.long().to(device), target_labels.long().to(device)
         seq_lens = get_seq_lens(inputs)
         # calculate the loss and train accuracy and perform backprop
         # NOTE: feel free to change the parameters to the model forward pass here + outputs
-        all_predicted_pairs, action_prob_dist, target_prob_dist = model(inputs, labels, seq_lens)
-
+        all_predicted_actions, all_predicted_targets, action_prob_dist, target_prob_dist = model(inputs, labels,
+                                                                                                 seq_lens)
+        action_prob_dist = torch.transpose(action_prob_dist, 1, 2)
+        target_prob_dist = torch.transpose(target_prob_dist, 1, 2)
         action_loss = criterion(action_prob_dist, action_labels)
         target_loss = criterion(target_prob_dist, target_labels)
 
@@ -171,20 +180,47 @@ def train_epoch(
         # exact match and prefix exact match. You can also try to compute longest common subsequence.
         # Feel free to change the input to these functions.
         """
-
-        exact_match_score = exact_match(all_predicted_pairs, labels)
-        prefix_match_score = prefix_match(all_predicted_pairs, labels)
+        action_exact_match_score = exact_match(all_predicted_actions, action_labels)
+        action_prefix_match_score = prefix_match(all_predicted_actions, action_labels)
+        action_num_of_match_score = num_of_match(all_predicted_actions, action_labels)
+        target_exact_match_score = exact_match(all_predicted_targets, target_labels)
+        target_prefix_match_score = prefix_match(all_predicted_targets, target_labels)
+        target_num_of_match_score = num_of_match(all_predicted_targets, target_labels)
 
         # logging
-        epoch_loss += loss.item()
-        epoch_exact_match_acc += exact_match_score
-        epoch_prefix_match_acc += prefix_match_score
+        print("---------------- Action ----------------")
+        print(f"loss: {action_loss} | exact match: {action_exact_match_score} | prefix match: {action_prefix_match_score} | num of match: {action_num_of_match_score}")
+        epoch_action_loss += action_loss
+        epoch_action_exact_match_acc += action_exact_match_score
+        epoch_action_prefix_match_acc += action_prefix_match_score
+        epoch_action_num_of_match_acc += action_num_of_match_score
+        print("---------------- Target ----------------")
+        print(
+            f"loss: {target_loss} | exact match: {target_exact_match_score} | prefix match: {target_prefix_match_score} | num of match: {target_num_of_match_score}")
+        epoch_target_loss += target_loss
+        epoch_target_exact_match_acc += target_exact_match_score
+        epoch_target_prefix_match_acc += target_prefix_match_score
+        epoch_target_num_of_match_acc += target_num_of_match_score
 
-    epoch_loss /= len(loader)
-    epoch_exact_match_acc /= len(loader)
-    epoch_prefix_match_acc /= len(loader)
+    epoch_action_loss /= len(loader)
+    epoch_target_loss /= len(loader)
+    epoch_action_exact_match_acc /= len(loader)
+    epoch_action_prefix_match_acc /= len(loader)
+    epoch_action_num_of_match_acc /= len(loader)
+    epoch_target_exact_match_acc /= len(loader)
+    epoch_target_prefix_match_acc /= len(loader)
+    epoch_target_num_of_match_acc /= len(loader)
 
-    return epoch_loss, epoch_exact_match_acc, epoch_prefix_match_acc
+    return (
+        epoch_action_loss,
+        epoch_target_loss,
+        epoch_action_exact_match_acc,
+        epoch_action_prefix_match_acc,
+        epoch_action_num_of_match_acc,
+        epoch_target_exact_match_acc,
+        epoch_target_prefix_match_acc,
+        epoch_target_num_of_match_acc
+    )
 
 
 def validate(args, model, loader, optimizer, criterion, device):
@@ -193,7 +229,7 @@ def validate(args, model, loader, optimizer, criterion, device):
 
     # don't compute gradients
     with torch.no_grad():
-        val_loss, val_exact_match_acc, val_prefix_match_acc = train_epoch(
+        val_action_loss, val_target_loss, val_action_exact_match_acc, val_action_prefix_match_acc, val_action_num_of_match_acc, val_target_exact_match_acc, val_target_prefix_match_acc, val_target_num_of_match_acc = train_epoch(
             args,
             model,
             loader,
@@ -203,7 +239,7 @@ def validate(args, model, loader, optimizer, criterion, device):
             training=False,
         )
 
-    return val_loss, val_exact_match_acc, val_prefix_match_acc
+    return val_action_loss, val_target_loss, val_action_exact_match_acc, val_action_prefix_match_acc, val_action_num_of_match_acc, val_target_exact_match_acc, val_target_prefix_match_acc, val_target_num_of_match_acc
 
 
 def train(args, model, loaders, optimizer, criterion, device):
@@ -211,12 +247,25 @@ def train(args, model, loaders, optimizer, criterion, device):
     # In each epoch we compute loss on each sample in our dataset and update the model
     # weights via backpropagation
 
-    all_train_exact_match_acc = []
-    all_train_prefix_match_acc = []
-    all_train_loss = []
-    all_val_exact_match_acc = []
-    all_val_prefix_match_acc = []
-    all_val_loss = []
+    all_train_action_exact_match_acc = []
+    all_train_action_prefix_match_acc = []
+    all_train_action_num_of_match_acc = []
+    all_train_action_loss = []
+
+    all_train_target_exact_match_acc = []
+    all_train_target_prefix_match_acc = []
+    all_train_target_loss = []
+    all_train_target_num_of_match_acc = []
+
+    all_val_action_exact_match_acc = []
+    all_val_action_prefix_match_acc = []
+    all_val_action_num_of_match_acc = []
+    all_val_action_loss = []
+
+    all_val_target_exact_match_acc = []
+    all_val_target_prefix_match_acc = []
+    all_val_target_num_of_match_acc = []
+    all_val_target_loss = []
 
     model.train()
 
@@ -224,7 +273,7 @@ def train(args, model, loaders, optimizer, criterion, device):
 
         # train single epoch
         # returns loss for action and target prediction and accuracy
-        train_loss, train_exact_match_acc, train_prefix_match_acc = train_epoch(
+        train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = train_epoch(
             args,
             model,
             loaders["train"],
@@ -234,17 +283,27 @@ def train(args, model, loaders, optimizer, criterion, device):
         )
 
         # some logging
+        print("-------- Action --------")
         print(
-            f"train loss : {train_loss} | train_exact_match_acc: {train_exact_match_acc} | train_prefix_match_acc: {train_prefix_match_acc}")
-        all_train_loss.append(train_loss)
-        all_train_exact_match_acc.append(train_exact_match_acc)
-        all_train_prefix_match_acc.append(train_prefix_match_acc)
+            f"loss: {train_action_loss} |train_exact_match_acc: {train_action_exact_match_acc} | train_prefix_match_acc: {train_action_prefix_match_acc} | train_num_of_match_acc: {train_action_num_of_match_acc}")
+        all_train_action_loss.append(train_action_loss)
+        all_train_action_exact_match_acc.append(train_action_exact_match_acc)
+        all_train_action_prefix_match_acc.append(train_action_prefix_match_acc)
+        all_train_action_num_of_match_acc.append(train_action_num_of_match_acc)
+        # haha
+        print("-------- Target --------")
+        print(
+            f"loss: {train_target_loss} |train_exact_match_acc: {train_target_exact_match_acc} | train_prefix_match_acc: {train_target_prefix_match_acc} | train_num_of_match_acc: {train_target_num_of_match_acc}")
+        all_train_target_loss.append(train_target_loss)
+        all_train_target_exact_match_acc.append(train_target_exact_match_acc)
+        all_train_target_prefix_match_acc.append(train_target_prefix_match_acc)
+        all_train_target_num_of_match_acc.append(train_target_num_of_match_acc)
 
         # run validation every so often
         # during eval, we run a forward pass through the model and compute
         # loss and accuracy but we don't update the model weights
         if epoch % args.val_every == 0:
-            val_loss, val_exact_match_acc, val_prefix_match_acc = validate(
+            val_action_loss, val_target_loss, val_action_exact_match_acc, val_action_prefix_match_acc, val_action_num_of_match_acc, val_target_exact_match_acc, val_target_prefix_match_acc, val_target_num_of_match_acc = validate(
                 args,
                 model,
                 loaders["val"],
@@ -253,11 +312,22 @@ def train(args, model, loaders, optimizer, criterion, device):
                 device,
             )
 
+            print("-------- Action --------")
             print(
-                f"val loss : {val_loss} | val_exact_match_acc acc: {val_exact_match_acc} | val_prefix_match_acc: {val_prefix_match_acc}")
-            all_val_loss.append(val_loss)
-            all_val_exact_match_acc.append(val_exact_match_acc)
-            all_val_prefix_match_acc.append(val_prefix_match_acc)
+                f"loss: {val_action_loss} |val_exact_match_acc acc: {val_action_exact_match_acc} | val_prefix_match_acc: {val_action_prefix_match_acc} | val_num_of_match_acc: {val_action_num_of_match_acc}")
+            all_val_action_loss.append(val_action_loss)
+            all_val_action_exact_match_acc.append(val_action_exact_match_acc)
+            all_val_action_prefix_match_acc.append(val_action_prefix_match_acc)
+            all_val_action_num_of_match_acc.append(val_action_num_of_match_acc)
+            print("-------- Target --------")
+            print(
+                f"loss: {val_target_loss} |val_exact_match_acc acc: {val_target_exact_match_acc} | val_prefix_match_acc: {val_target_prefix_match_acc} | val_num_of_match_acc: {val_target_num_of_match_acc}")
+            all_val_target_loss.append(val_target_loss)
+            all_val_target_exact_match_acc.append(val_target_exact_match_acc)
+            all_val_target_prefix_match_acc.append(val_target_prefix_match_acc)
+            all_val_target_num_of_match_acc.append(val_target_num_of_match_acc)
+
+            # Save model
             ckpt_file = os.path.join(args.outputs_dir, "s2s_model.ckpt")
             print("saving model to ", ckpt_file)
             torch.save(model, ckpt_file)
@@ -267,41 +337,27 @@ def train(args, model, loaders, optimizer, criterion, device):
     # evaluation loss. Use the matplotlib library to plot
     # 4 figures for 1) training loss, 2) training accuracy, 3) validation loss, 4) validation accuracy
     # ===================================================== #
-    output_result_figure(args, "outputs/experiments/s2s/training_loss.png", all_train_loss, "Training Loss", False)
-    output_result_figure(args, "outputs/experiments/s2s/training_acc(exact_match).png", all_train_exact_match_acc,
-                         "Training Accuracy (exact match)", False)
-    output_result_figure(args, "outputs/experiments/s2s/training_acc(prefix_match).png", all_train_prefix_match_acc,
-                         "Training Accuracy (prefix match)", False)
-    output_result_figure(args, "outputs/experiments/s2s/validation_loss.png", all_val_loss, "Validation Loss", True)
-    output_result_figure(args, "outputs/experiments/s2s/validation_acc(exact_match).png", all_val_exact_match_acc,
-                         "Validation Training Accuracy (exact match)", True)
-    output_result_figure(args, "outputs/experiments/s2s/validation_acc(prefix_match).png", all_val_prefix_match_acc,
-                         "Validation Training Accuracy (prefix match)", True)
+    output_loss_graph(args, "training_loss.png", all_train_action_loss, all_train_target_loss, "Training Loss", False)
+    output_acc_graph(args, "training_action_accuracy.png", all_train_action_exact_match_acc,
+                     all_train_action_prefix_match_acc, all_train_action_num_of_match_acc, "Action Accuracy(Training)",
+                     False)
+    output_acc_graph(args, "training_target_accuracy.png", all_train_target_exact_match_acc,
+                     all_train_target_prefix_match_acc, all_train_target_num_of_match_acc, "Target Accuracy(Training)",
+                     False)
+    output_loss_graph(args, "validation_loss.png", all_val_action_loss, all_val_target_loss, "Validation Loss", True)
+    output_acc_graph(args, "validation_action_accuracy.png", all_val_action_exact_match_acc, all_val_action_prefix_match_acc,
+                     all_val_action_num_of_match_acc, "Action Accuracy(Validation)", True)
+    output_acc_graph(args, "validation_target_accuracy.png", all_val_target_exact_match_acc, all_val_target_prefix_match_acc,
+                     all_val_target_num_of_match_acc, "Target Accuracy(Validation)", True)
+
 
 def main(args):
     device = get_device(args.force_cpu)
 
     # get dataloaders
-    # train_loader, val_loader, n_vocab, n_actions, n_targets = setup_dataloader(args)
-    #
-    # print(n_vocab, n_actions, n_targets)
-    #
-    # torch.save(train_loader, "outputs/train_loader.pth")
-    # torch.save(val_loader, "outputs/val_loader.pth")
-    # return
+    train_loader, val_loader, n_vocab, n_actions, n_targets, seq_len = setup_dataloader(args)
 
-    n_vocab = 1000
-    n_actions = 10
-    n_targets = 82
-
-    train_loader = torch.load("outputs/train_loader.pth")
-    val_loader = torch.load("outputs/val_loader.pth")
-
-    # for input, label in train_loader:
-    #     seq_lens = get_seq_lens(input)
-    #     print(input[0])
-    #     print(seq_lens)
-    #     return
+    print("n_vocab:", n_vocab, "n_actions", n_actions, "n_targets", n_targets)
 
     loaders = {"train": train_loader, "val": val_loader}
 
@@ -313,7 +369,7 @@ def main(args):
     criterion, optimizer = setup_optimizer(args, model, device)
 
     if args.eval:
-        val_loss, val_exact_match_acc, val_prefix_match_acc = validate(
+        val_action_loss, val_target_loss, val_action_exact_match_acc, val_action_prefix_match_acc, val_action_num_of_match_acc, val_target_exact_match_acc, val_target_prefix_match_acc, val_target_num_of_match_acc = validate(
             args,
             model,
             loaders["val"],
@@ -343,21 +399,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--teacher_forcing", type=bool, default=False, help="whether use teacher_forcing"
     )
+    parser.add_argument(
+        "--encoder_decoder_attention", type=bool, default=False, help="whether use encoder decoder attention"
+    )
 
     args = parser.parse_args()
 
     main(args)
-    # embedding_test = torch.nn.Embedding(5, 15)
-    # inputs = torch.tensor(np.array([[1, 2, 3, 4], [3, 4, 2, 1], [0, 1, 3, 2]]))
-    # inputs = np.transpose(inputs)
-    # print("input shape:", inputs.shape)
-    # output = embedding_test(inputs)
-    # print("embedding output shape:", output.shape)
-    # LSTM_layer = torch.nn.LSTM(input_size=15, hidden_size=32, num_layers=2, dropout=0.1)
-    # lstm_out, (hidden, cell) = LSTM_layer(output)
-    # print(len(lstm_out), len(lstm_out[0]), len(lstm_out[0][0]))
-    # print("hidden shape:", hidden.shape)
-    #
-    # action_fc = torch.nn.Linear(in_features=32, out_features=10)
-    # fc_out = action_fc(lstm_out[0])
-    # print("fc_out shape:", fc_out.shape)

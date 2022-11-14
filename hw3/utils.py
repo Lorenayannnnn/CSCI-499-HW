@@ -1,3 +1,4 @@
+import os
 import re
 import torch
 import numpy as np
@@ -70,25 +71,27 @@ def build_output_tables(train):
             a, t = outseq
             actions.add(a)
             targets.add(t)
-    # Save space for START and STOP indicating the start and end of an episode
-    actions_to_index = {a: i+2 for i, a in enumerate(actions)}
-    targets_to_index = {t: i+2 for i, t in enumerate(targets)}
-    actions_to_index["A_START"] = 0
-    targets_to_index["T_START"] = 0
-    actions_to_index["A_STOP"] = 1
-    targets_to_index["T_STOP"] = 1
+    # Save space for STOP indicating the end of an episode
+    actions_to_index = {a: i+1 for i, a in enumerate(actions)}
+    targets_to_index = {t: i+1 for i, t in enumerate(targets)}
+    actions_to_index["A_STOP"] = 0
+    targets_to_index["T_STOP"] = 0
     index_to_actions = {actions_to_index[a]: a for a in actions_to_index}
     index_to_targets = {targets_to_index[t]: t for t in targets_to_index}
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
 
+
 def prefix_match(predicted_labels, gt_labels):
+    """
+    params dim: [batch_size, instruction_num]
+    """
     # predicted_labels: [batch_size, seq_length, 2]
     # predicted and gt are sequences of (action, target) labels, the sequences should be of same length
     # computes how many matching (action, target) labels there are between predicted and gt
-    # is a number between 0 and 1 
+    # is a number between 0 and 1
     batch_size = len(gt_labels)
     seq_length = len(gt_labels[0])
-    pm = 0
+    pm = 0.0
     for i in range(batch_size):
         j = 0
         for j in range(seq_length):
@@ -96,27 +99,45 @@ def prefix_match(predicted_labels, gt_labels):
                 break
         pm += j / seq_length
 
-    return pm
+    return pm/batch_size
 
 
 def exact_match(predicted_labels, gt_labels):
+    """
+    params dim: [batch_size, instruction_num]
+    """
+    """
+    average # of exact match of 1 batch
+    """
     batch_size = len(gt_labels)
-    em = 0
+    seq_len = len(gt_labels[0])
+    em = 0.0
     for i in range(batch_size):
-        if predicted_labels[i] == gt_labels[i]:
-            em += 1
-    return em
+        same = True
+        for j in range(seq_len):
+            if predicted_labels[i][j] != gt_labels[i][j]:
+                same = False
+                break
+        em += 1 if same else 0
+    return em/batch_size
 
 
 def num_of_match(predicted_labels, gt_labels):
+    """
+    params dim: [batch_size, instruction_num]
+    """
     batch_size = len(gt_labels)
     seq_len = len(gt_labels[0])
-    match_score = 0
+    total_match_score = 0.0
     for i in range(batch_size):
+        match_score = 0
         for j in range(seq_len):
             if predicted_labels[i][j] == gt_labels[i][j]:
                 match_score += 1
-    return match_score
+            if predicted_labels[i][j] == 0 and gt_labels[i][j] == 0:
+                break
+        total_match_score += match_score / j
+    return total_match_score/batch_size
 
 
 def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dict, targets_to_index: dict,
@@ -135,7 +156,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     # Maximum number of action-target pairs of 1 episode among all
     max_action_target_pair_len = 0
     for (idx, episode) in enumerate(training_data):
-        episode_labels = [[actions_to_index["A_START"], targets_to_index["T_START"]]]
+        episode_labels = []
         encoded_episodes[idx][0] = vocab_to_index["<start>"]
         jdx = 1
         for entry in episode:
@@ -184,29 +205,16 @@ def parse_action_target_labels(labels):
     label: [batch_size, instruction_num, 2]
 
     return:
-    - action_labels: [batch_size * instruction_num]
-    - action_labels: [batch_size * instruction_num]
+    - action_labels: [batch_size, instruction_num]
+    - action_labels: [batch_size, instruction_num]
     """
-    action_labels = []
-    target_labels = []
+    action_labels = torch.zeros((len(labels), len(labels[0])))
+    target_labels = torch.zeros((len(labels), len(labels[0])))
     for idx, label in enumerate(labels):
-        action_labels.extend(label[:, 0])
-        target_labels.extend(label[:, 1])
+        action_labels[idx-1] = label[:, 0]
+        target_labels[idx-1] = label[:, 1]
 
-    return torch.tensor(np.array(action_labels)), torch.tensor(np.array(target_labels))
-
-
-def output_result_figure(args, output_file_name: str, y_axis_data: list, graph_title: str, is_val: bool):
-    x_axis_data = [i for i in range(1, args.num_epochs + 1, args.val_every)] if is_val else [i for i in range(1, args.num_epochs + 1)]
-
-    figure, ax = plt.subplots()
-    ax.plot(x_axis_data, y_axis_data)
-    ax.set_title(graph_title)
-    ax.set_xlabel("Num of epochs")
-
-    figure.show()
-
-    figure.savefig(output_file_name)
+    return action_labels, target_labels
 
 
 def get_seq_lens(batch_input):
@@ -215,3 +223,35 @@ def get_seq_lens(batch_input):
     for idx, i_input in enumerate(batch_input):
         batch_seq_lens[idx] = np.where(i_input == 0)[0][0] if len(np.where(i_input == 0)[0]) > 0 else len(i_input)
     return batch_seq_lens
+
+
+def output_loss_graph(args, output_file_name: str, action_loss_data: list, target_loss_data: list, graph_title: str,
+                      is_val: bool):
+    x_axis_data = [i for i in range(args.num_epochs + 1, args.val_every)] if is_val else [i for i in range(args.num_epochs + 1)]
+
+    figure, ax = plt.subplots()
+    ax.plot(x_axis_data, action_loss_data, label="Action")
+    ax.plot(x_axis_data, target_loss_data, label="Target")
+    ax.set_title(graph_title)
+    ax.set_xlabel("Num of epochs")
+    ax.legend()
+
+    figure.show()
+    figure.savefig(os.path.join(args.outputs_dir, output_file_name))
+
+
+def output_acc_graph(args, output_file_name: str, exact_match_data: list, prefix_match_data: list,
+                     percentage_match: list, graph_title: str, is_val: bool):
+    x_axis_data = [i for i in range(1, args.num_epochs + 1, args.val_every)] if is_val else [i for i in range(1, args.num_epochs + 1)]
+
+    figure, ax = plt.subplots()
+    ax.plot(x_axis_data, exact_match_data, label="Exact Match")
+    ax.plot(x_axis_data, prefix_match_data, label="Prefix Match")
+    ax.plot(x_axis_data, percentage_match, label="Percentage Match")
+    ax.set_title(graph_title)
+    ax.set_xlabel("Num of epochs")
+    ax.legend()
+
+    figure.show()
+    figure.savefig(os.path.join(args.outputs_dir, output_file_name))
+
