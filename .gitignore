@@ -134,4 +134,5 @@ dmypy.json
 # PA2
 hw2/books
 
-hw3/outputs
+hw3/outputs/experiments/s2s/s2s_model.ckpt
+hw3/outputs/experiments/s2s_with_attention/s2s_w_attention_model.ckpt

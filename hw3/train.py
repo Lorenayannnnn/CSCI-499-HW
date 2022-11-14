@@ -46,14 +46,16 @@ def setup_dataloader(args):
     file = open(data_file)
     data = json.load(file)
     # Read in training and validation data TODO
-    # training_data = [episode for episode in data["train"]]
-    # validation_data = [episode for episode in data["valid_seen"]]
-    training_data = data["train"][:100]
-    validation_data = data["valid_seen"][:100]
+    training_data = [episode for episode in data["train"]]
+    validation_data = [episode for episode in data["valid_seen"]]
+    # training_data = data["train"][:1000]
+    # validation_data = data["valid_seen"][:1000]
 
     file.close()
 
     vocab_to_index, index_to_vocab, len_cutoff = build_tokenizer_table(training_data)
+    # TODO
+    len_cutoff = 100
     actions_to_index, index_to_actions, targets_to_index, index_to_targets = build_output_tables(training_data)
 
     train_episodes, train_labels = encode_data(training_data, vocab_to_index, actions_to_index, targets_to_index, len_cutoff)
@@ -108,7 +110,7 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, voca
         dropout_rate = 0.3
         model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
                                args.teacher_forcing, args.encoder_decoder_attention)
-        model = torch.load(os.path.join(args.outputs_dir, args.model_output_filename))
+        # model = torch.load(os.path.join(args.outputs_dir, args.model_output_filename))
     return model
 
 
@@ -298,15 +300,14 @@ def train(args, model, loaders, optimizer, criterion, device):
         # some logging
         print("-------- Action --------")
         print(
-            f"loss: {train_action_loss} |train_exact_match_acc: {train_action_exact_match_acc} | train_prefix_match_acc: {train_action_prefix_match_acc} | train_num_of_match_acc: {train_action_num_of_match_acc}")
+            f"train_loss: {train_action_loss} | train_exact_match_acc: {train_action_exact_match_acc} | train_prefix_match_acc: {train_action_prefix_match_acc} | train_num_of_match_acc: {train_action_num_of_match_acc}")
         all_train_action_loss.append(train_action_loss)
         all_train_action_exact_match_acc.append(train_action_exact_match_acc)
         all_train_action_prefix_match_acc.append(train_action_prefix_match_acc)
         all_train_action_num_of_match_acc.append(train_action_num_of_match_acc)
-        # haha
         print("-------- Target --------")
         print(
-            f"loss: {train_target_loss} |train_exact_match_acc: {train_target_exact_match_acc} | train_prefix_match_acc: {train_target_prefix_match_acc} | train_num_of_match_acc: {train_target_num_of_match_acc}")
+            f"train_loss: {train_target_loss} | train_exact_match_acc: {train_target_exact_match_acc} | train_prefix_match_acc: {train_target_prefix_match_acc} | train_num_of_match_acc: {train_target_num_of_match_acc}")
         all_train_target_loss.append(train_target_loss)
         all_train_target_exact_match_acc.append(train_target_exact_match_acc)
         all_train_target_prefix_match_acc.append(train_target_prefix_match_acc)
@@ -327,14 +328,14 @@ def train(args, model, loaders, optimizer, criterion, device):
 
             print("-------- Action --------")
             print(
-                f"loss: {val_action_loss} |val_exact_match_acc acc: {val_action_exact_match_acc} | val_prefix_match_acc: {val_action_prefix_match_acc} | val_num_of_match_acc: {val_action_num_of_match_acc}")
+                f"val_loss: {val_action_loss} | val_exact_match_acc acc: {val_action_exact_match_acc} | val_prefix_match_acc: {val_action_prefix_match_acc} | val_num_of_match_acc: {val_action_num_of_match_acc}")
             all_val_action_loss.append(val_action_loss)
             all_val_action_exact_match_acc.append(val_action_exact_match_acc)
             all_val_action_prefix_match_acc.append(val_action_prefix_match_acc)
             all_val_action_num_of_match_acc.append(val_action_num_of_match_acc)
             print("-------- Target --------")
             print(
-                f"loss: {val_target_loss} |val_exact_match_acc acc: {val_target_exact_match_acc} | val_prefix_match_acc: {val_target_prefix_match_acc} | val_num_of_match_acc: {val_target_num_of_match_acc}")
+                f"val_loss: {val_target_loss} | val_exact_match_acc acc: {val_target_exact_match_acc} | val_prefix_match_acc: {val_target_prefix_match_acc} | val_num_of_match_acc: {val_target_num_of_match_acc}")
             all_val_target_loss.append(val_target_loss)
             all_val_target_exact_match_acc.append(val_target_exact_match_acc)
             all_val_target_prefix_match_acc.append(val_target_prefix_match_acc)

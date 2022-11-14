@@ -110,8 +110,6 @@ def prefix_match(predicted_labels, gt_labels, labels_len):
 
 
 def exact_match(predicted_labels, gt_labels):
-    print("predicted_labels", predicted_labels)
-    print("gt_labels", gt_labels)
     """
     params dim: [batch_size, instruction_num]
     """
@@ -253,9 +251,11 @@ def get_labels_seq_lens(batch_labels):
 
 def output_loss_graph(args, output_file_name: str, action_loss_data: list, target_loss_data: list, graph_title: str,
                       is_val: bool):
-    x_axis_data = [i for i in range(args.num_epochs + 1, args.val_every)] if is_val else [i for i in range(args.num_epochs + 1)]
+    x_axis_data = [i for i in range(0, args.num_epochs, args.val_every)] if is_val else [i for i in range(args.num_epochs)]
 
     figure, ax = plt.subplots()
+    action_loss_data = [loss.detach() for loss in action_loss_data]
+    target_loss_data = [loss.detach() for loss in target_loss_data]
     ax.plot(x_axis_data, action_loss_data, label="Action")
     ax.plot(x_axis_data, target_loss_data, label="Target")
     ax.set_title(graph_title)
@@ -268,7 +268,7 @@ def output_loss_graph(args, output_file_name: str, action_loss_data: list, targe
 
 def output_acc_graph(args, output_file_name: str, exact_match_data: list, prefix_match_data: list,
                      percentage_match: list, graph_title: str, is_val: bool):
-    x_axis_data = [i for i in range(1, args.num_epochs + 1, args.val_every)] if is_val else [i for i in range(1, args.num_epochs + 1)]
+    x_axis_data = [i for i in range(0, args.num_epochs, args.val_every)] if is_val else [i for i in range(args.num_epochs)]
 
     figure, ax = plt.subplots()
     ax.plot(x_axis_data, exact_match_data, label="Exact Match")
