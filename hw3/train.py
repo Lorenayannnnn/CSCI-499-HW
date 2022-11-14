@@ -6,7 +6,7 @@ import json
 from torch.utils.data import TensorDataset, DataLoader
 import os
 
-from hw3.models.Seq2SeqBert import Seq2SeqBert
+from model.Seq2SeqBert import Seq2SeqBert
 from utils import (
     get_device,
     build_tokenizer_table,
@@ -21,7 +21,7 @@ from utils import (
     output_loss_graph, get_labels_seq_lens
 )
 
-from hw3.models.EncoderDecoder import EncoderDecoder
+from model.EncoderDecoder import EncoderDecoder
 
 
 def setup_dataloader(args):
@@ -45,20 +45,19 @@ def setup_dataloader(args):
     # Load data from json file
     file = open(data_file)
     data = json.load(file)
-    # Read in training and validation data
-    training_data = [episode for episode in data["train"]]
-    validation_data = [episode for episode in data["valid_seen"]]
+    # Read in training and validation data TODO
+    # training_data = [episode for episode in data["train"]]
+    # validation_data = [episode for episode in data["valid_seen"]]
+    training_data = data["train"][:100]
+    validation_data = data["valid_seen"][:100]
 
     file.close()
 
     vocab_to_index, index_to_vocab, len_cutoff = build_tokenizer_table(training_data)
-    actions_to_index, index_to_actions, targets_to_index, index_to_targets = build_output_tables(training_data,
-                                                                                                 run_seq2seq_bert=args.run_seq_2_seq_bert)
+    actions_to_index, index_to_actions, targets_to_index, index_to_targets = build_output_tables(training_data)
 
-    train_episodes, train_labels = encode_data(training_data, vocab_to_index, actions_to_index, targets_to_index,
-                                               len_cutoff, run_seq2seq_bert=args.run_seq_2_seq_bert)
-    val_episodes, val_labels = encode_data(validation_data, vocab_to_index, actions_to_index, targets_to_index,
-                                           len_cutoff, run_seq2seq_bert=args.run_seq_2_seq_bert)
+    train_episodes, train_labels = encode_data(training_data, vocab_to_index, actions_to_index, targets_to_index, len_cutoff)
+    val_episodes, val_labels = encode_data(validation_data, vocab_to_index, actions_to_index, targets_to_index, len_cutoff)
     train_dataset = TensorDataset(torch.from_numpy(np.array(train_episodes)), torch.from_numpy(np.array(train_labels)))
     val_dataset = TensorDataset(torch.from_numpy(np.array(val_episodes)), torch.from_numpy(np.array(val_labels)))
 
@@ -99,6 +98,7 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, voca
             model_name=model_name,
             input_bos_token_id=vocab_to_index['<start>'],
             input_eos_token_id=vocab_to_index['<end>'],
+            output_bos_token_id=vocab_to_index['A_START'],
             output_eos_token_id=actions_to_index['A_STOP']
         )
     else:
@@ -169,11 +169,12 @@ def train_epoch(
         inputs, labels = inputs.to(device), labels.to(device)
         action_labels, target_labels = parse_action_target_labels(labels)
         action_labels, target_labels = action_labels.long().to(device), target_labels.long().to(device)
-        seq_lens = get_episode_seq_lens(inputs)
+        seq_lens = get_episode_seq_lens(inputs).to(device)
         # calculate the loss and train accuracy and perform backprop
         # NOTE: feel free to change the parameters to the model forward pass here + outputs
         all_predicted_actions, all_predicted_targets, action_prob_dist, target_prob_dist = model(inputs, labels,
-                                                                                                 seq_lens)
+                                                                                                 seq_lens,
+                                                                                                 teacher_forcing=training)
         action_prob_dist = torch.transpose(action_prob_dist, 1, 2)
         target_prob_dist = torch.transpose(target_prob_dist, 1, 2)
         action_loss = criterion(action_prob_dist, action_labels)
@@ -187,12 +188,6 @@ def train_epoch(
             loss.backward()
             optimizer.step()
 
-        """
-        # TODO: implement code to compute some other metrics between your predicted sequence
-        # of (action, target) labels vs the ground truth sequence. We already provide 
-        # exact match and prefix exact match. You can also try to compute longest common subsequence.
-        # Feel free to change the input to these functions.
-        """
         labels_lens = get_labels_seq_lens(labels)
         action_exact_match_score = exact_match(all_predicted_actions, action_labels)
         action_prefix_match_score = prefix_match(all_predicted_actions, action_labels, labels_lens)
@@ -284,18 +279,19 @@ def train(args, model, loaders, optimizer, criterion, device):
     model.train()
 
     for epoch in tqdm.tqdm(range(args.num_epochs)):
-
-        # train single epoch
-        # returns loss for action and target prediction and accuracy
-        train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = train_epoch(
-            args,
-            model,
-            loaders["train"],
-            optimizer,
-            criterion,
-            device,
-        )
-
+        train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = 0, 0, 0, 0, 0, 0, 0, 0
+        if args.run_seq_2_seq_bert:
+            pass
+        else:
+            # returns loss for action and target prediction and accuracy
+            train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = train_epoch(
+                args,
+                model,
+                loaders["train"],
+                optimizer,
+                criterion,
+                device,
+            )
         # some logging
         print("-------- Action --------")
         print(
@@ -377,7 +373,7 @@ def main(args):
     loaders = {"train": train_loader, "val": val_loader}
 
     # build model
-    model = setup_model(args, device, n_vocab, n_actions, n_targets, vocab_to_index, actions_to_index)
+    model = setup_model(args, device, n_vocab, n_actions, n_targets, vocab_to_index, actions_to_index).to(device)
     print(model)
 
     # get optimizer and loss functions

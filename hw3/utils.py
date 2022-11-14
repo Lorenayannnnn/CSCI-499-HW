@@ -63,7 +63,7 @@ def build_tokenizer_table(train, vocab_size=1000):
     )
 
 
-def build_output_tables(train, run_seq2seq_bert=False):
+def build_output_tables(train):
     actions = set()
     targets = set()
     for episode in train:
@@ -71,20 +71,17 @@ def build_output_tables(train, run_seq2seq_bert=False):
             a, t = outseq
             actions.add(a)
             targets.add(t)
-    if run_seq2seq_bert:
-        # Save space for START, STOP indicating the end of an episode
-        actions_to_index = {a: i + 2 for i, a in enumerate(actions)}
-        targets_to_index = {t: i + 2 for i, t in enumerate(targets)}
-        actions_to_index["A_START"] = 0
-        targets_to_index["T_START"] = 0
-        actions_to_index["A_STOP"] = 1
-        targets_to_index["T_STOP"] = 1
-    else:
-        # Save space for STOP indicating the end of an episode
-        actions_to_index = {a: i + 1 for i, a in enumerate(actions)}
-        targets_to_index = {t: i + 1 for i, t in enumerate(targets)}
-        actions_to_index["A_STOP"] = 0
-        targets_to_index["T_STOP"] = 0
+    # Save space for START, STOP, PAD
+    actions_to_index = {a: i + 4 for i, a in enumerate(actions)}
+    targets_to_index = {t: i + 4 for i, t in enumerate(targets)}
+    actions_to_index["A_START"] = 0
+    targets_to_index["T_START"] = 0
+    actions_to_index["A_STOP"] = 1
+    targets_to_index["T_STOP"] = 1
+    actions_to_index["A_PAD"] = 2
+    targets_to_index["T_PAD"] = 2
+    actions_to_index["A_UNK"] = 3
+    targets_to_index["T_UNK"] = 3
     index_to_actions = {actions_to_index[a]: a for a in actions_to_index}
     index_to_targets = {targets_to_index[t]: t for t in targets_to_index}
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
@@ -151,7 +148,7 @@ def percentage_match(predicted_labels, gt_labels):
 
 
 def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dict, targets_to_index: dict,
-                seq_len: int, run_seq2seq_bert=False):
+                seq_len: int):
     """
     training_data: list of list of (instructions and corresponding pairs of targets & actions)
     """
@@ -166,7 +163,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     # Maximum number of action-target pairs of 1 episode among all
     max_action_target_pair_len = 0
     for (idx, episode) in enumerate(training_data):
-        episode_labels = [[actions_to_index["A_START"], targets_to_index["T_START"]]] if run_seq2seq_bert else []
+        episode_labels = [[actions_to_index["A_START"], targets_to_index["T_START"]]]
         encoded_episodes[idx][0] = vocab_to_index["<start>"]
         jdx = 1
         for entry in episode:
@@ -183,7 +180,10 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
                     jdx += 1
                     if jdx == seq_len - 1:
                         break
-            episode_labels.append([actions_to_index[action], targets_to_index[target]])
+            episode_labels.append([
+                actions_to_index[action] if action in actions_to_index else actions_to_index["A_UNK"],
+                targets_to_index[target] if target in targets_to_index else targets_to_index["T_UNK"]
+            ])
             if jdx == seq_len - 1:
                 n_early_cutoff += 1
                 break
@@ -196,7 +196,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     # "Pad" all encoded_labels to max_action_target_pair_len with
     # [actions_to_index["A_STOP"], targets_to_index["T_STOP"]]
     for index, episode_label in enumerate(encoded_labels):
-        encoded_labels[index].extend([[actions_to_index["A_STOP"], targets_to_index["T_STOP"]]] * (
+        encoded_labels[index].extend([[actions_to_index["A_PAD"], targets_to_index["T_PAD"]]] * (
                     max_action_target_pair_len - len(episode_label)))
 
     print(
@@ -229,7 +229,7 @@ def parse_action_target_labels(labels):
 
 def get_episode_seq_lens(batch_input):
     batch_size = len(batch_input)
-    batch_seq_lens = np.zeros(batch_size)
+    batch_seq_lens = torch.zeros(batch_size)
     for idx, i_input in enumerate(batch_input):
         batch_seq_lens[idx] = np.where(i_input == 0)[0][0] if len(np.where(i_input == 0)[0]) > 0 else len(i_input)
     return batch_seq_lens
@@ -237,10 +237,10 @@ def get_episode_seq_lens(batch_input):
 
 def get_labels_seq_lens(batch_labels):
     batch_size = len(batch_labels)
-    batch_seq_lens = np.zeros(batch_size)
+    batch_seq_lens = np.zeros(batch_size, dtype=int)
     for idx, i_label in enumerate(batch_labels):
         i_label = torch.transpose(i_label, 0, 1)
-        batch_seq_lens[idx] = np.where(i_label[0] == 0)[0][0] if len(np.where(i_label[0] == 0)[0]) > 0 else len(i_label[0])
+        batch_seq_lens[idx] = np.where(i_label[0] == 1)[0] if len(np.where(i_label[0] == 1)[0]) > 0 else len(i_label[0])
     return batch_seq_lens
 
 

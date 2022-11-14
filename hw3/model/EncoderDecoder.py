@@ -102,7 +102,7 @@ class EncoderDecoder(nn.Module):
         self.decoder = Decoder(embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
                                self.use_encoder_decoder_attention)
 
-    def forward(self, episodes, labels, seq_lens):
+    def forward(self, episodes, labels, seq_lens, teacher_forcing=True):
         """
         parameters:
         - episodes: [batch_size, seq_len]
@@ -140,7 +140,7 @@ class EncoderDecoder(nn.Module):
             all_predicted_actions[i-1] = predicted_action
             all_predicted_targets[i-1] = predicted_target
             # Use true labels if teacher_forcing
-            predicted_pairs = torch.transpose(labels[i], 0, 1) if self.teacher_forcing else predicted_pairs
+            predicted_pairs = torch.transpose(labels[i], 0, 1) if teacher_forcing else predicted_pairs
 
         return (
             torch.transpose(all_predicted_actions, 0, 1),
