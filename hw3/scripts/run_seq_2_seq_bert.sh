@@ -7,5 +7,5 @@ caffeinate -s python train.py \
     --val_every=1 \
     --force_cpu \
     --use_bert=True \
-    --teacher_forcing=True \
-    --encoder_decoder_attention=True
+    --teacher_forcing\
+    --encoder_decoder_attention

@@ -72,16 +72,14 @@ def build_output_tables(train):
             actions.add(a)
             targets.add(t)
     # Save space for START, STOP, PAD
-    actions_to_index = {a: i + 4 for i, a in enumerate(actions)}
-    targets_to_index = {t: i + 4 for i, t in enumerate(targets)}
+    actions_to_index = {a: i + 3 for i, a in enumerate(actions)}
+    targets_to_index = {t: i + 3 for i, t in enumerate(targets)}
     actions_to_index["A_START"] = 0
     targets_to_index["T_START"] = 0
     actions_to_index["A_STOP"] = 1
     targets_to_index["T_STOP"] = 1
     actions_to_index["A_PAD"] = 2
     targets_to_index["T_PAD"] = 2
-    actions_to_index["A_UNK"] = 3
-    targets_to_index["T_UNK"] = 3
     index_to_actions = {actions_to_index[a]: a for a in actions_to_index}
     index_to_targets = {targets_to_index[t]: t for t in targets_to_index}
     return actions_to_index, index_to_actions, targets_to_index, index_to_targets
@@ -101,21 +99,20 @@ def prefix_match(predicted_labels, gt_labels, labels_len):
     pm = 0.0
     for i in range(batch_size):
         j = 0
-        for j in range(1, seq_len):
-            if predicted_labels[i][j] != gt_labels[i][j] or (predicted_labels[i][j] == 1 and gt_labels[i][j] == 1):
+        for j in range(seq_len):
+            if predicted_labels[i][j] != gt_labels[i][j] or (predicted_labels[i][j] == 2 and gt_labels[i][j] == 2):
                 break
-        pm += j / labels_len[i] if j <= labels_len[i] else j / seq_len
+        pm += ((j+1) / labels_len[i]) if j <= labels_len[i] else ((j+1) / seq_len)
 
     return pm/batch_size
 
 
 def exact_match(predicted_labels, gt_labels):
+    # TODO
     print("predicted_labels", predicted_labels)
     print("gt_labels", gt_labels)
     """
     params dim: [batch_size, instruction_num]
-    """
-    """
     average # of exact match of 1 batch
     """
     batch_size = len(gt_labels)
@@ -187,10 +184,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
                     jdx += 1
                     if jdx == seq_len - 1:
                         break
-            episode_labels.append([
-                actions_to_index[action] if action in actions_to_index else actions_to_index["A_UNK"],
-                targets_to_index[target] if target in targets_to_index else targets_to_index["T_UNK"]
-            ])
+            episode_labels.append([actions_to_index[action],targets_to_index[target]])
             if jdx == seq_len - 1:
                 n_early_cutoff += 1
                 break
@@ -239,16 +233,24 @@ def get_episode_seq_lens(batch_input):
     batch_size = len(batch_input)
     batch_seq_lens = torch.zeros(batch_size)
     for idx, i_input in enumerate(batch_input):
-        batch_seq_lens[idx] = np.where(i_input == 0)[0][0] if len(np.where(i_input == 0)[0]) > 0 else len(i_input)
+        jdx = 0
+        for jdx in range(len(i_input)):
+            if i_input[jdx] == 0:
+                break
+        batch_seq_lens[idx] = jdx + 1
     return batch_seq_lens
 
 
 def get_labels_seq_lens(batch_labels):
     batch_size = len(batch_labels)
-    batch_seq_lens = np.zeros(batch_size, dtype=int)
+    batch_seq_lens = torch.zeros(batch_size)
     for idx, i_label in enumerate(batch_labels):
-        i_label = torch.transpose(i_label, 0, 1)
-        batch_seq_lens[idx] = np.where(i_label[0] == 1)[0] if len(np.where(i_label[0] == 1)[0]) > 0 else len(i_label[0])
+        i_label = torch.transpose(i_label, 0, 1)[0]
+        jdx = 0
+        for jdx in range(len(i_label)):
+            if i_label[jdx] == 2:
+                break
+        batch_seq_lens[idx] = jdx + 1
     return batch_seq_lens
 
 

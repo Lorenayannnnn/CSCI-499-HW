@@ -6,5 +6,5 @@ python train.py \
     --num_epochs=10 \
     --val_every=2 \
     --force_cpu \
-    --teacher_forcing=True \
-    --encoder_decoder_attention=True
+    --teacher_forcing \
+    --encoder_decoder_attention

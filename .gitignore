@@ -136,3 +136,4 @@ hw2/books
 
 hw3/outputs/experiments/s2s/s2s_model.ckpt
 hw3/outputs/experiments/s2s_with_attention/s2s_w_attention_model.ckpt
+hw3/outputs/experiments/s2s_bert/s2s_w_bert_decoder_model.ckpt

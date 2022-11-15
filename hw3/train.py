@@ -46,11 +46,8 @@ def setup_dataloader(args):
     file = open(data_file)
     data = json.load(file)
     # Read in training and validation data
-    # training_data = [episode for episode in data["train"]]
-    # validation_data = [episode for episode in data["valid_seen"]]
-    # TODO
-    training_data = [data["train"][0]]
-    validation_data = [data["train"][0]]
+    training_data = [episode for episode in data["train"]]
+    validation_data = [episode for episode in data["valid_seen"]]
 
     file.close()
 
@@ -110,7 +107,7 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, voca
                                args.teacher_forcing, args.encoder_decoder_attention, use_bert=True,
                                bert_encoder=bert_encoder)
     else:
-        hidden_dim = 64
+        hidden_dim = 256
         n_hidden_layer = 2
         model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
                                args.teacher_forcing, args.encoder_decoder_attention)
@@ -128,7 +125,7 @@ def setup_optimizer(args, model, device):
     # and target predictions. Also initialize your optimizer.
     # ===================================================== #
     criterion = torch.nn.CrossEntropyLoss(ignore_index=2).to(device)
-    optimizer = torch.optim.Adam(params=model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(params=model.parameters())
 
     return criterion, optimizer
 
@@ -180,8 +177,7 @@ def train_epoch(
         all_predicted_actions, all_predicted_targets, action_prob_dist, target_prob_dist = model(inputs, labels,
                                                                                                  seq_lens,
                                                                                                  teacher_forcing=training)
-        # import pdb
-        # pdb.set_trace()
+
 
         action_prob_dist = torch.transpose(action_prob_dist, 1, 2)
         target_prob_dist = torch.transpose(target_prob_dist, 1, 2)
@@ -279,6 +275,7 @@ def train(args, model, loaders, optimizer, criterion, device):
     all_val_target_loss = []
 
     for epoch in tqdm.tqdm(range(args.num_epochs)):
+        model.train()
         # returns loss for action and target prediction and accuracy
         train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = train_epoch(
             args,
@@ -406,13 +403,13 @@ if __name__ == "__main__":
         "--val_every", type=int, default=5, help="number of epochs between every eval loop"
     )
     parser.add_argument(
-        "--teacher_forcing", type=bool, default=False, help="whether use teacher_forcing"
+        "--teacher_forcing", action="store_true", help="whether use teacher_forcing"
     )
     parser.add_argument(
-        "--encoder_decoder_attention", type=bool, default=False, help="whether use encoder decoder attention"
+        "--encoder_decoder_attention", action="store_true", help="whether use encoder decoder attention"
     )
     parser.add_argument(
-        "--use_bert", type=bool, default=False, help="whether use pretrained bert as encoder"
+        "--use_bert", action="store_true", help="whether use pretrained bert as encoder"
     )
 
     args = parser.parse_args()

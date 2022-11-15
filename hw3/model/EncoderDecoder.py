@@ -70,7 +70,7 @@ class Decoder(nn.Module):
         action_embedding_out = self.action_embedding_layer(x[0])
         target_embedding_out = self.target_embedding_layer(x[1])
         embedding_out = torch.concat((action_embedding_out, target_embedding_out), dim=1).unsqueeze(0)
-        # lstm_out: [2 (action & target), batch_size, hidden_dim]
+        # lstm_out: [seq_len, batch_size, hidden_dim]
         # new_hidden: [1*num_layers, batch_size, hidden_dim]
         # new_cell: [1*num_layers, batch_size, hidden_dim]
         lstm_out, (new_hidden, new_cell) = self.LSTM(embedding_out, (hidden, cell))

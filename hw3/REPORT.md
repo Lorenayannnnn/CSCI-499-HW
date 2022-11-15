@@ -35,10 +35,10 @@ Table of Content
 | Parameter | Value | Description |
 |:---------:|:-----:|:-----------:|
 | n_vocab | 1000 | Different number of vocabulary in the final dictionary
-| n_embedding | 128 | dimension of embedding layer. Chosen arbitrarily
-| n_hidden | 128 | dimension of hidden LSTM layer. Chosen arbitrarily
+| embedding_dim | 128 | dimension of embedding layer. Chosen arbitrarily
+| hidden_dim | 256 | dimension of hidden LSTM layer. Chosen arbitrarily
 | dropout_rate | 0.3 | dropout rate of LSTM layer
-| num_layers | 2 | number of LSTM layers
+| num_layers | 1 | number of LSTM layers stacked together
 ##### Architecture
 - (embedding_layer): Embedding(1000, 128) -> get embeddings of instructions
 - (LSTM): LSTM(128, 64, num_layers=2, batch_first=True, dropout=0.3) -> encode instruction embeddings. **pack_padded_sequence** is used to ignore embeddings of pad tokens
