@@ -110,6 +110,8 @@ def prefix_match(predicted_labels, gt_labels, labels_len):
 
 
 def exact_match(predicted_labels, gt_labels):
+    print("predicted_labels", predicted_labels)
+    print("gt_labels", gt_labels)
     """
     params dim: [batch_size, instruction_num]
     """
@@ -215,9 +217,10 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     return encoded_episodes, encoded_labels
 
 
-def parse_action_target_labels(labels):
+def parse_action_target_labels(labels, use_bert):
     """
     label: [batch_size, instruction_num, 2]
+    use_bert: whether use bert as decoder
 
     return:
     - action_labels: [batch_size, instruction_num]
@@ -226,8 +229,8 @@ def parse_action_target_labels(labels):
     action_labels = torch.zeros((len(labels), len(labels[0])))
     target_labels = torch.zeros((len(labels), len(labels[0])))
     for idx, label in enumerate(labels):
-        action_labels[idx-1] = label[:, 0]
-        target_labels[idx-1] = label[:, 1]
+        action_labels[idx] = label[:, 0]
+        target_labels[idx] = label[:, 1]
 
     return action_labels, target_labels
 

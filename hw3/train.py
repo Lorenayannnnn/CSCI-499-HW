@@ -6,7 +6,7 @@ import json
 from torch.utils.data import TensorDataset, DataLoader
 import os
 
-from model.Seq2SeqBert import Seq2SeqBert
+from model.BertEncoder import BertEncoder
 from utils import (
     get_device,
     build_tokenizer_table,
@@ -46,14 +46,15 @@ def setup_dataloader(args):
     file = open(data_file)
     data = json.load(file)
     # Read in training and validation data
-    training_data = [episode for episode in data["train"]]
-    validation_data = [episode for episode in data["valid_seen"]]
+    # training_data = [episode for episode in data["train"]]
+    # validation_data = [episode for episode in data["valid_seen"]]
+    # TODO
+    training_data = [data["train"][0]]
+    validation_data = [data["train"][0]]
 
     file.close()
 
     vocab_to_index, index_to_vocab, len_cutoff = build_tokenizer_table(training_data)
-    # TODO
-    len_cutoff = 100
     actions_to_index, index_to_actions, targets_to_index, index_to_targets = build_output_tables(training_data)
 
     train_episodes, train_labels = encode_data(training_data, vocab_to_index, actions_to_index, targets_to_index, len_cutoff)
@@ -71,7 +72,7 @@ def setup_dataloader(args):
 def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, vocab_to_index: dict, actions_to_index: dict):
     """
     return:
-        - model: EncoderDecoder or Seq2SeqBert
+        - model: EncoderDecoder
     """
     # ===================================================== #
     # Task: Initialize your model. Your model should be an
@@ -92,23 +93,27 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, voca
     # ===================================================== #
     # model_name: str, input_bos_token_id: int, input_eos_token_id: int, output_bos_token_id: int,
     # output_eos_token_id
-    if args.run_seq_2_seq_bert:
-        model_name = "bert-base-uncased"
-        model = Seq2SeqBert(
-            model_name=model_name,
+    embedding_dim = 128
+    dropout_rate = 0.3
+    if args.use_bert:
+        bert_encoder = BertEncoder(
+            model_name="bert-base-uncased",
             input_bos_token_id=vocab_to_index['<start>'],
             input_eos_token_id=vocab_to_index['<end>'],
-            output_bos_token_id=vocab_to_index['A_START'],
-            output_eos_token_id=actions_to_index['A_STOP']
+            input_pad_token_id=vocab_to_index['<pad>'],
+            input_n_vocab=n_vocab
         )
+        # Keep consistent with the pretrained bert model
+        hidden_dim = 768
+        n_hidden_layer = 1
+        model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
+                               args.teacher_forcing, args.encoder_decoder_attention, use_bert=True,
+                               bert_encoder=bert_encoder)
     else:
-        embedding_dim = 128
         hidden_dim = 64
         n_hidden_layer = 2
-        dropout_rate = 0.3
         model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
                                args.teacher_forcing, args.encoder_decoder_attention)
-        # model = torch.load(os.path.join(args.outputs_dir, args.model_output_filename))
     return model
 
 
@@ -123,7 +128,7 @@ def setup_optimizer(args, model, device):
     # and target predictions. Also initialize your optimizer.
     # ===================================================== #
     criterion = torch.nn.CrossEntropyLoss(ignore_index=2).to(device)
-    optimizer = torch.optim.Adam(params=model.parameters())
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=0.01)
 
     return criterion, optimizer
 
@@ -168,14 +173,16 @@ def train_epoch(
     for inputs, labels in loader:
         # put model inputs to device
         inputs, labels = inputs.to(device), labels.to(device)
-        action_labels, target_labels = parse_action_target_labels(labels)
+        action_labels, target_labels = parse_action_target_labels(labels, args.use_bert)
         action_labels, target_labels = action_labels.long().to(device), target_labels.long().to(device)
         seq_lens = get_episode_seq_lens(inputs).to(device)
-        # calculate the loss and train accuracy and perform backprop
-        # NOTE: feel free to change the parameters to the model forward pass here + outputs
+
         all_predicted_actions, all_predicted_targets, action_prob_dist, target_prob_dist = model(inputs, labels,
                                                                                                  seq_lens,
                                                                                                  teacher_forcing=training)
+        # import pdb
+        # pdb.set_trace()
+
         action_prob_dist = torch.transpose(action_prob_dist, 1, 2)
         target_prob_dist = torch.transpose(target_prob_dist, 1, 2)
         action_loss = criterion(action_prob_dist, action_labels)
@@ -189,8 +196,6 @@ def train_epoch(
             loss.backward()
             optimizer.step()
 
-        # print("all_predicted_actions:", all_predicted_actions)
-        # print("action_labels:", action_labels)
         labels_lens = get_labels_seq_lens(labels)
         action_exact_match_score = exact_match(all_predicted_actions, action_labels)
         action_prefix_match_score = prefix_match(all_predicted_actions, action_labels, labels_lens)
@@ -273,22 +278,16 @@ def train(args, model, loaders, optimizer, criterion, device):
     all_val_target_num_of_match_acc = []
     all_val_target_loss = []
 
-    model.train()
-
     for epoch in tqdm.tqdm(range(args.num_epochs)):
-        train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = 0, 0, 0, 0, 0, 0, 0, 0
-        if args.run_seq_2_seq_bert:
-            pass
-        else:
-            # returns loss for action and target prediction and accuracy
-            train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = train_epoch(
-                args,
-                model,
-                loaders["train"],
-                optimizer,
-                criterion,
-                device,
-            )
+        # returns loss for action and target prediction and accuracy
+        train_action_loss, train_target_loss, train_action_exact_match_acc, train_action_prefix_match_acc, train_action_num_of_match_acc, train_target_exact_match_acc, train_target_prefix_match_acc, train_target_num_of_match_acc = train_epoch(
+            args,
+            model,
+            loaders["train"],
+            optimizer,
+            criterion,
+            device,
+        )
         # some logging
         print("-------- Action --------")
         print(
@@ -413,7 +412,7 @@ if __name__ == "__main__":
         "--encoder_decoder_attention", type=bool, default=False, help="whether use encoder decoder attention"
     )
     parser.add_argument(
-        "--run_seq_2_seq_bert", type=bool, default=False, help="run seq2seq bert model"
+        "--use_bert", type=bool, default=False, help="whether use pretrained bert as encoder"
     )
 
     args = parser.parse_args()
