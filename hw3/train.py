@@ -45,11 +45,9 @@ def setup_dataloader(args):
     # Load data from json file
     file = open(data_file)
     data = json.load(file)
-    # Read in training and validation data TODO
+    # Read in training and validation data
     training_data = [episode for episode in data["train"]]
     validation_data = [episode for episode in data["valid_seen"]]
-    # training_data = data["train"][:1000]
-    # validation_data = data["valid_seen"][:1000]
 
     file.close()
 
@@ -201,16 +199,10 @@ def train_epoch(
         target_prefix_match_score = prefix_match(all_predicted_targets, target_labels, labels_lens)
         target_num_of_match_score = percentage_match(all_predicted_targets, target_labels)
 
-        # logging TODO
-        # print("---------------- Action ----------------")
-        # print(f"loss: {action_loss} | exact match: {action_exact_match_score} | prefix match: {action_prefix_match_score} | num of match: {action_num_of_match_score}")
         epoch_action_loss += action_loss
         epoch_action_exact_match_acc += action_exact_match_score
         epoch_action_prefix_match_acc += action_prefix_match_score
         epoch_action_num_of_match_acc += action_num_of_match_score
-        # print("---------------- Target ----------------")
-        # print(
-        #     f"loss: {target_loss} | exact match: {target_exact_match_score} | prefix match: {target_prefix_match_score} | num of match: {target_num_of_match_score}")
         epoch_target_loss += target_loss
         epoch_target_exact_match_acc += target_exact_match_score
         epoch_target_prefix_match_acc += target_prefix_match_score
