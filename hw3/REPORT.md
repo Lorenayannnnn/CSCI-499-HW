@@ -83,11 +83,46 @@ TODO
 #### Loss
 
 ## Performance
+### Evaluation Metrics
+Loss and accuracy of action and target predictions are calculated separately. 3 metrics are used here:
+- Exact Match: given a predicted and a ground truth sequence of target, 2 sequences are matched if and only they are exactly the same.
+- Prefix match: sequences are iterated from the start to the end linearly and stop when the target/action at the current position of each sequence is different.
+- Percentage match: Iterate through all targets/actions (instead of stop early for prefix match), and accuracy = #(matched target/action) / sequence length
+
 ### LSTM Encoder-Decoder Model
-TODO
+![](outputs/experiments/s2s/training_loss.png)
+![](outputs/experiments/s2s/training_action_accuracy.png)
+![](outputs/experiments/s2s/training_target_accuracy.png)
+![](outputs/experiments/s2s/validation_loss.png)
+![](outputs/experiments/s2s/validation_action_accuracy.png)
+![](outputs/experiments/s2s/validation_target_accuracy.png)
+
+|                   |   Loss   | Exact Match Acc | Prefix Match Acc | Percentage Match |
+|:-----------------:|:--------:|:---------------:|:----------------:|:----------------:|
+|  Training Action  |  1.6194  |       0.0       |      0.2028      |      0.2494      |
+|  Training Target  |  3.9120  |       0.0       |      0.1014      |      0.1014      |
+| Validation Action |  1.6242  |       0.0       |      0.2039      |      0.2806      |
+| Validation Target |  3.8865  |       0.0       |      0.1019      |      0.1019      |
+As can be seen from above, the accuracy is quite low, for which I suspect that although instructions are truncated, they may still be a little long for the LSTM to learn and produce good hidden representations.
+Also, pretrained embedding weights are not used, so maybe using pretrained ones to initialize the embedding layers can be helpful as well. 
 
 ### LSTM Encoder-Decoder with Attention
-TODO
+![](outputs/experiments/s2s_with_attention/training_loss.png)
+![](outputs/experiments/s2s_with_attention/training_action_accuracy.png)
+![](outputs/experiments/s2s_with_attention/training_target_accuracy.png)
+![](outputs/experiments/s2s_with_attention/validation_loss.png)
+![](outputs/experiments/s2s_with_attention/validation_action_accuracy.png)
+![](outputs/experiments/s2s_with_attention/validation_target_accuracy.png)
+
+|                   |   Loss   | Exact Match Acc | Prefix Match Acc | Percentage Match |
+|:-----------------:|:--------:|:---------------:|:----------------:|:----------------:|
+|  Training Action  |  1.6194  |       0.0       |      0.2029      |      0.2494      |
+|  Training Target  |  3.9112  |       0.0       |      0.1015      |      0.1015      |
+| Validation Action |  1.6237  |       0.0       |      0.2039      |      0.2806      |
+| Validation Target |  3.8825  |       0.0       |      0.1020      |      0.1020      |
+As can be seen from above, applying the encoder-decoder attention does help the model to decrease the loss to some extent and improve the accuracy to some extent, but the improvement is very insignificant. 
+Again, I guess that the instruction may still be a little bit long for the LSTM layer, especially the one in the encoder, to learn and create good representations for the decoder to attend to. 
+Also, when I was implementing the encoder-decoder attention, I only takes the hidden representations of the last LSTM layer into account while I have 2 LSTM layers stacked together. Maybe attending representations of both layers can also be helpful.  
 
 ### Transformer Based Encoder-Decoder Model
 TODO
