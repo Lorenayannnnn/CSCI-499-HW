@@ -105,12 +105,12 @@ def setup_model(args, device, n_vocab: int, n_actions: int, n_targets: int, voca
         n_hidden_layer = 1
         model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
                                args.teacher_forcing, args.encoder_decoder_attention, use_bert=True,
-                               bert_encoder=bert_encoder)
+                               bert_encoder=bert_encoder, device=device)
     else:
         hidden_dim = 256
         n_hidden_layer = 2
         model = EncoderDecoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
-                               args.teacher_forcing, args.encoder_decoder_attention)
+                               args.teacher_forcing, args.encoder_decoder_attention, device=device)
     return model
 
 
@@ -172,12 +172,11 @@ def train_epoch(
         inputs, labels = inputs.to(device), labels.to(device)
         action_labels, target_labels = parse_action_target_labels(labels, args.use_bert)
         action_labels, target_labels = action_labels.long().to(device), target_labels.long().to(device)
-        seq_lens = get_episode_seq_lens(inputs).to(device)
+        seq_lens = get_episode_seq_lens(inputs)
 
         all_predicted_actions, all_predicted_targets, action_prob_dist, target_prob_dist = model(inputs, labels,
                                                                                                  seq_lens,
                                                                                                  teacher_forcing=training)
-
 
         action_prob_dist = torch.transpose(action_prob_dist, 1, 2)
         target_prob_dist = torch.transpose(target_prob_dist, 1, 2)
@@ -195,10 +194,10 @@ def train_epoch(
         labels_lens = get_labels_seq_lens(labels)
         action_exact_match_score = exact_match(all_predicted_actions, action_labels)
         action_prefix_match_score = prefix_match(all_predicted_actions, action_labels, labels_lens)
-        action_num_of_match_score = percentage_match(all_predicted_actions, action_labels)
+        action_num_of_match_score = percentage_match(all_predicted_actions, action_labels, labels_lens)
         target_exact_match_score = exact_match(all_predicted_targets, target_labels)
         target_prefix_match_score = prefix_match(all_predicted_targets, target_labels, labels_lens)
-        target_num_of_match_score = percentage_match(all_predicted_targets, target_labels)
+        target_num_of_match_score = percentage_match(all_predicted_targets, target_labels, labels_lens)
 
         epoch_action_loss += action_loss
         epoch_action_exact_match_acc += action_exact_match_score

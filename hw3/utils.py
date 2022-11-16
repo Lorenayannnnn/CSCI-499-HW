@@ -95,22 +95,19 @@ def prefix_match(predicted_labels, gt_labels, labels_len):
     # computes how many matching (action, target) labels there are between predicted and gt
     # is a number between 0 and 1
     batch_size = len(gt_labels)
-    seq_len = len(gt_labels[0])
     pm = 0.0
     for i in range(batch_size):
         j = 0
+        seq_len = int(labels_len[i].item())
         for j in range(seq_len):
-            if predicted_labels[i][j] != gt_labels[i][j] or (predicted_labels[i][j] == 2 and gt_labels[i][j] == 2):
+            if (predicted_labels[i][j] != gt_labels[i][j]) or (predicted_labels[i][j] == 1 and gt_labels[i][j] == 1):
                 break
-        pm += ((j+1) / labels_len[i]) if j <= labels_len[i] else ((j+1) / seq_len)
+        pm += (j / seq_len)
 
     return pm/batch_size
 
 
 def exact_match(predicted_labels, gt_labels):
-    # TODO
-    print("predicted_labels", predicted_labels)
-    print("gt_labels", gt_labels)
     """
     params dim: [batch_size, instruction_num]
     average # of exact match of 1 batch
@@ -120,7 +117,7 @@ def exact_match(predicted_labels, gt_labels):
     em = 0.0
     for i in range(batch_size):
         same = True
-        for j in range(1, seq_len):
+        for j in range(seq_len):
             if predicted_labels[i][j] != gt_labels[i][j]:
                 same = False
                 break
@@ -131,23 +128,22 @@ def exact_match(predicted_labels, gt_labels):
     return em/batch_size
 
 
-def percentage_match(predicted_labels, gt_labels):
+def percentage_match(predicted_labels, gt_labels, labels_len):
     """
     params dim: [batch_size, instruction_num]
     """
     batch_size = len(gt_labels)
-    seq_len = len(gt_labels[0])
     total_match_score = 0.0
     for i in range(batch_size):
         match_score = 0
-        j = 0
-        for j in range(1, seq_len):
+        seq_len = int(labels_len[i].item())
+        for j in range(seq_len):
             if predicted_labels[i][j] == gt_labels[i][j]:
                 match_score += 1
             if predicted_labels[i][j] == 1 and gt_labels[i][j] == 1:
                 # STOP token
                 break
-        total_match_score += match_score / j
+        total_match_score += match_score / seq_len
     return total_match_score/batch_size
 
 

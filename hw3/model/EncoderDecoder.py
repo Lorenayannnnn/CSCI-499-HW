@@ -10,9 +10,10 @@ class Encoder(nn.Module):
     through any recurrent model and output a hidden representation.
     """
 
-    def __init__(self, n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate):
+    def __init__(self, n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, device):
         super(Encoder, self).__init__()
         self.n_vocab = n_vocab
+        self.device = device
         self.embedding_layer = nn.Embedding(num_embeddings=n_vocab, embedding_dim=embedding_dim)
         self.LSTM = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_dim, num_layers=n_hidden_layer,
                             batch_first=True, dropout=dropout_rate)
@@ -27,7 +28,7 @@ class Encoder(nn.Module):
         embedding_out = self.embedding_layer(episodes)
 
         # Ignore padding tokens
-        embedding_out_packed = pack_padded_sequence(embedding_out, seq_lens, batch_first=True, enforce_sorted=False)
+        embedding_out_packed = pack_padded_sequence(embedding_out.cpu(), lengths=seq_lens.cpu(), batch_first=True, enforce_sorted=False).to(self.device)
 
         # lstm_out: [batch_size, seq_len, hidden_dim]
         # hidden: [1*num_layers, batch_size, hidden_dim]
@@ -91,7 +92,7 @@ class EncoderDecoder(nn.Module):
     """
 
     def __init__(self, n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
-                 teacher_forcing, use_encoder_decoder_attention, use_bert=False, bert_encoder=None):
+                 teacher_forcing, use_encoder_decoder_attention, use_bert=False, bert_encoder=None, device="cpu"):
         super(EncoderDecoder, self).__init__()
         self.n_vocab = n_vocab
         self.n_actions = n_actions
@@ -101,10 +102,11 @@ class EncoderDecoder(nn.Module):
         self.use_bert = use_bert
         self.n_hidden_layer = n_hidden_layer
         self.hidden_dim = hidden_dim
+        self.device = device
         if use_bert:
             self.encoder = bert_encoder
         else:
-            self.encoder = Encoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate)
+            self.encoder = Encoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, device)
         self.decoder = Decoder(embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
                                self.use_encoder_decoder_attention)
 
@@ -121,28 +123,26 @@ class EncoderDecoder(nn.Module):
         - action_prob_dist ([batch_size, instruction_num, n_actions])
         - target_prob_dist ([batch_size, instruction_num, n_targets])
         """
-        # print("labels", labels)
         batch_size = len(labels)
         instruction_num = len(labels[0])
         labels = torch.transpose(labels, 0, 1)
         if self.use_bert:
             encoder_lstm_out, hidden = self.encoder(episodes, seq_lens)
             # cell: [1*num_layers, batch_size, hidden_dim]
-            cell = torch.zeros((self.n_hidden_layer, batch_size, self.hidden_dim))
+            cell = torch.zeros((self.n_hidden_layer, batch_size, self.hidden_dim), device=self.device)
         else:
             encoder_lstm_out, hidden, cell = self.encoder(episodes, seq_lens)
 
         # Store predicted distribution of action & target: [instruction_num, batch_size, n_actions/n_targets]
-        action_prob_dist = torch.zeros((instruction_num, batch_size, self.n_actions))
-        target_prob_dist = torch.zeros((instruction_num, batch_size, self.n_targets))
+        action_prob_dist = torch.zeros((instruction_num, batch_size, self.n_actions), device=self.device)
+        target_prob_dist = torch.zeros((instruction_num, batch_size, self.n_targets), device=self.device)
         # each time step has a row of action & a row of target for each sample in the batch
         all_predicted_actions = torch.zeros((instruction_num, batch_size))
         all_predicted_targets = torch.zeros((instruction_num, batch_size))
         # Corresponds to A_START and T_START tokens
-        predicted_pairs = torch.zeros((2, batch_size), dtype=torch.long)
+        predicted_pairs = torch.zeros((2, batch_size), dtype=torch.long, device=self.device)
         for i in range(1, instruction_num):
             action_output, target_output, hidden, cell = self.decoder(predicted_pairs, hidden, cell, encoder_lstm_out)
-            # print(torch.topk(action_output, dim=1, k=5))
             predicted_action = torch.argmax(action_output, dim=1)
             predicted_target = torch.argmax(target_output, dim=1)
             predicted_pairs = torch.concat((predicted_action, predicted_target)).reshape(2, batch_size)
@@ -152,9 +152,7 @@ class EncoderDecoder(nn.Module):
             all_predicted_actions[i] = predicted_action
             all_predicted_targets[i] = predicted_target
             # Use true labels if teacher_forcing
-            # print("predicted_pairs:", predicted_pairs)
             predicted_pairs = torch.transpose(labels[i], 0, 1) if teacher_forcing else predicted_pairs
-            # print("actual:", predicted_pairs)
 
         return (
             torch.transpose(all_predicted_actions, 0, 1),
@@ -189,6 +187,3 @@ class Attention(nn.Module):
         # [batch_size, seq_len]
         final_hidden = torch.bmm(encoder_hidden_outputs.transpose(1, 2), weights).squeeze(2)
         return final_hidden
-
-
-
