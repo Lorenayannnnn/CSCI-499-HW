@@ -106,7 +106,7 @@ Loss and accuracy of action and target predictions are calculated separately. 3 
 - Percentage match: Iterate through all targets/actions (instead of stop early for prefix match), and accuracy = #(matched target/action) / sequence length
 
 ### LSTM Encoder-Decoder Model
-TODO
+
 ![](outputs/experiments/s2s/training_loss.png)
 ![](outputs/experiments/s2s/training_action_accuracy.png)
 ![](outputs/experiments/s2s/training_target_accuracy.png)
@@ -145,14 +145,23 @@ TODO
 - Also, the attention currently attends to word-level state. Attending to instruction-level states may make more sense because pairs of target and action come with the corresponding instructions. 
 
 ### Transformer Based Encoder-Decoder Model
-- Due to limited memory on my rented GPU, batch size is reduced from 256 to 128
-TODO
+- Due to limited memory on my rented GPU, batch size is reduced from 256 to 128 (and due to time limitation only 5 epochs were run. Need money for better GPU lol)
+
+![](outputs/experiments/s2s_bert/training_loss.png)
+![](outputs/experiments/s2s_bert/training_action_accuracy.png)
+![](outputs/experiments/s2s_bert/training_target_accuracy.png)
+![](outputs/experiments/s2s_bert/validation_loss.png)
+![](outputs/experiments/s2s_bert/validation_action_accuracy.png)
+![](outputs/experiments/s2s_bert/validation_target_accuracy.png)
 
 |                   |   Loss   | Exact Match Acc | Prefix Match Acc | Percentage Match |
 |:-----------------:|:--------:|:---------------:|:----------------:|:----------------:|
-|  Training Action  |    |              |            |            |
-|  Training Target  |    |              |            |            |
-| Validation Action |    |              |            |            |
-| Validation Target |    |              |            |            |
+|  Training Action  |  0.3250  |   4.2613e-05    |      0.7381      |      0.8751      |
+|  Training Target  |  1.4268  |      0.0        |     0.1436       |      0.6220      |
+| Validation Action |  3.3059  |      0.0        |      0.4865      |      0.6075      |
+| Validation Target |  7.2150  |      0.0        |      0.1407      |      0.1920      |
 
-- The pretrained bert originally has 30522 as its vocab size. However, for this project, I only have n_vocab=1000, which may cause the model to be unable to fully exploit the pretrained Bert model. 
+- As can be seen from above, this model actually performs worse than the vanilla LSTM encoder-decoder model, which makes sense to some extent. 
+- I suspect that we don't have enough data to fine tune a model that is as large as BERT. Given that I didn't freeze the layers, and we only have around 20k data entries, the model is very likely to over-fit, which is to some extent indicated by the validation loss that is continuously increasing.
+- The pretrained bert originally has 30522 as its vocab size. However, for this project, I only have n_vocab=1000, which may cause the model to be unable to fully exploit the pretrained Bert model.
+- Change the decoder part to also BERT may allow the entire model to exploit the attention mechanism better. 
