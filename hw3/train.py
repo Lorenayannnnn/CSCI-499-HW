@@ -287,14 +287,14 @@ def train(args, model, loaders, optimizer, criterion, device):
         # some logging
         print("-------- Action --------")
         print(
-            f"train_loss: {train_action_loss} | train_exact_match_acc: {train_action_exact_match_acc} | train_prefix_match_acc: {train_action_prefix_match_acc} | train_num_of_match_acc: {train_action_num_of_match_acc}")
+            f"train_loss: {train_action_loss} | train_exact_match_acc: {train_action_exact_match_acc} | train_prefix_match_acc: {train_action_prefix_match_acc} | train_percentage_match_acc: {train_action_num_of_match_acc}")
         all_train_action_loss.append(train_action_loss)
         all_train_action_exact_match_acc.append(train_action_exact_match_acc)
         all_train_action_prefix_match_acc.append(train_action_prefix_match_acc)
         all_train_action_num_of_match_acc.append(train_action_num_of_match_acc)
         print("-------- Target --------")
         print(
-            f"train_loss: {train_target_loss} | train_exact_match_acc: {train_target_exact_match_acc} | train_prefix_match_acc: {train_target_prefix_match_acc} | train_num_of_match_acc: {train_target_num_of_match_acc}")
+            f"train_loss: {train_target_loss} | train_exact_match_acc: {train_target_exact_match_acc} | train_prefix_match_acc: {train_target_prefix_match_acc} | train_percentage_match_acc: {train_target_num_of_match_acc}")
         all_train_target_loss.append(train_target_loss)
         all_train_target_exact_match_acc.append(train_target_exact_match_acc)
         all_train_target_prefix_match_acc.append(train_target_prefix_match_acc)
@@ -315,14 +315,14 @@ def train(args, model, loaders, optimizer, criterion, device):
 
             print("-------- Action --------")
             print(
-                f"val_loss: {val_action_loss} | val_exact_match_acc acc: {val_action_exact_match_acc} | val_prefix_match_acc: {val_action_prefix_match_acc} | val_num_of_match_acc: {val_action_num_of_match_acc}")
+                f"val_loss: {val_action_loss} | val_exact_match_acc acc: {val_action_exact_match_acc} | val_prefix_match_acc: {val_action_prefix_match_acc} | val_percentage_match_acc: {val_action_num_of_match_acc}")
             all_val_action_loss.append(val_action_loss)
             all_val_action_exact_match_acc.append(val_action_exact_match_acc)
             all_val_action_prefix_match_acc.append(val_action_prefix_match_acc)
             all_val_action_num_of_match_acc.append(val_action_num_of_match_acc)
             print("-------- Target --------")
             print(
-                f"val_loss: {val_target_loss} | val_exact_match_acc acc: {val_target_exact_match_acc} | val_prefix_match_acc: {val_target_prefix_match_acc} | val_num_of_match_acc: {val_target_num_of_match_acc}")
+                f"val_loss: {val_target_loss} | val_exact_match_acc acc: {val_target_exact_match_acc} | val_prefix_match_acc: {val_target_prefix_match_acc} | val_percentage_match_acc: {val_target_num_of_match_acc}")
             all_val_target_loss.append(val_target_loss)
             all_val_target_exact_match_acc.append(val_target_exact_match_acc)
             all_val_target_prefix_match_acc.append(val_target_prefix_match_acc)

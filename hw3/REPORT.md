@@ -116,15 +116,14 @@ TODO
 
 |                   |   Loss   | Exact Match Acc | Prefix Match Acc | Percentage Match |
 |:-----------------:|:--------:|:---------------:|:----------------:|:----------------:|
-|  Training Action  |    |              |            |            |
-|  Training Target  |    |              |            |            |
-| Validation Action |    |              |            |            |
-| Validation Target |    |              |            |            |
+|  Training Action  |  0.2762  |      0.0002     |      0.7818      |      0.8911      |
+|  Training Target  |  0.5238  |      0.0001     |      0.7635      |      0.8880      |
+| Validation Action |  0.5943  |      0.0        |      0.7607      |      0.8684      |
+| Validation Target |  1.2694  |      0.0        |      0.5345      |      0.7917      |
 
-As can be seen from above, the accuracy is quite low, 
-
-Potential issues & solutions:
-- Pretrained embedding weights are not used, so maybe using pretrained ones to initialize the embedding layers can be helpful as well. 
+- The loss and accuracy are acceptable (the lstm is learning :) ). Can be further experimented with more combinations of hyperparameters. 
+- Pretrained embedding weights are not used, so maybe using pretrained ones to initialize the embedding layers can be helpful as well.
+- Also, the exact match accuracy is very low, so maybe trying to produce instruction-level instead of word-level hidden states, so that the lstm can learn a better hidden representations for producing instruction pairs for specific positions corresponding to each sub-instruction.
 
 ### LSTM Encoder-Decoder with Attention
 TODO
@@ -146,6 +145,7 @@ TODO
 - Also, the attention currently attends to word-level state. Attending to instruction-level states may make more sense because pairs of target and action come with the corresponding instructions. 
 
 ### Transformer Based Encoder-Decoder Model
+- Due to limited memory on my rented GPU, batch size is reduced from 256 to 128
 TODO
 
 |                   |   Loss   | Exact Match Acc | Prefix Match Acc | Percentage Match |
