@@ -126,7 +126,7 @@ Loss and accuracy of action and target predictions are calculated separately. 3 
 - Also, the exact match accuracy is very low, so maybe trying to produce instruction-level instead of word-level hidden states, so that the lstm can learn a better hidden representations for producing instruction pairs for specific positions corresponding to each sub-instruction.
 
 ### LSTM Encoder-Decoder with Attention
-TODO
+
 ![](outputs/experiments/s2s_with_attention/training_loss.png)
 ![](outputs/experiments/s2s_with_attention/training_action_accuracy.png)
 ![](outputs/experiments/s2s_with_attention/training_target_accuracy.png)
@@ -136,16 +136,17 @@ TODO
 
 |                   |   Loss   | Exact Match Acc | Prefix Match Acc | Percentage Match |
 |:-----------------:|:--------:|:---------------:|:----------------:|:----------------:|
-|  Training Action  |    |              |            |            |
-|  Training Target  |    |              |            |            |
-| Validation Action |    |              |            |            |
-| Validation Target |    |              |            |            |
+|  Training Action  |  1.5224  |       0.0       |      0.2135      |      0.4341      |
+|  Training Target  |  1.8435  |       0.0       |      0.1320      |      0.3920      |
+| Validation Action |  1.5402  |       0.0       |      0.2133      |      0.4452      |
+| Validation Target |  1.5290  |       0.0       |      0.1284      |      0.3678      |
 
-- When I was implementing the encoder-decoder attention, I only takes the hidden representations of the last LSTM layer into account while I have 2 LSTM layers stacked together. Maybe attending representations of both layers can be helpful.
-- Also, the attention currently attends to word-level state. Attending to instruction-level states may make more sense because pairs of target and action come with the corresponding instructions. 
+- As can be seen from above, including the attention cause the model performs worse. I think one possible reason is that given the hidden dimension of LSTM layer is 256, the linear layer in Attention has in_feature=512 and out_feature=1, meaning that it can be very difficult for the Attention to actually learn how the output of each time step is related with each encoder hidden state. The model, especially the Attention part, may not be complex enough for the decoder to attend to the encoder and thus may almost always produce the sane attention vector at the end. When I was logging out the predictions and the loss, the loss was decreasing, but the attention weights were changing by a very small rate, meaning the Attention was not learning effectively. 
+- Also, When I was implementing the encoder-decoder attention, I only takes the hidden representations of the last LSTM layer into account while I have 2 LSTM layers stacked together. Maybe attending representations of both layers can be helpful.
+- The attention currently attends to word-level state. Attending to instruction-level states may make more sense because pairs of target and action come with the corresponding instructions. 
 
 ### Transformer Based Encoder-Decoder Model
-- Due to limited memory on my rented GPU, batch size is reduced from 256 to 128 (and due to time limitation only 5 epochs were run. Need money for better GPU lol)
+Due to limited memory on my rented GPU, the batch size is reduced from 256 to 128 (and due to time limitation only 5 epochs were run. Need money for better GPU lol)
 
 ![](outputs/experiments/s2s_bert/training_loss.png)
 ![](outputs/experiments/s2s_bert/training_action_accuracy.png)
