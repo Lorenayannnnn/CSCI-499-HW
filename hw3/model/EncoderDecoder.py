@@ -48,7 +48,7 @@ class Decoder(nn.Module):
     """
 
     def __init__(self, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
-                 use_encoder_decoder_attention):
+                 use_encoder_decoder_attention, device):
         super(Decoder, self).__init__()
         self.n_hidden_layer = n_hidden_layer
         self.action_embedding_layer = nn.Embedding(num_embeddings=n_actions, embedding_dim=embedding_dim)
@@ -58,7 +58,7 @@ class Decoder(nn.Module):
                             dropout=dropout_rate)
         self.action_fc = nn.Linear(in_features=hidden_dim, out_features=n_actions)
         self.target_fc = nn.Linear(in_features=hidden_dim, out_features=n_targets)
-        self.attention = Attention(hidden_dim)
+        self.attention = Attention(hidden_dim, device)
 
     def forward(self, x, hidden, cell, encoder_hidden_outputs):
         """
@@ -108,7 +108,7 @@ class EncoderDecoder(nn.Module):
         else:
             self.encoder = Encoder(n_vocab, embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, device)
         self.decoder = Decoder(embedding_dim, hidden_dim, n_hidden_layer, dropout_rate, n_actions, n_targets,
-                               self.use_encoder_decoder_attention)
+                               self.use_encoder_decoder_attention, device)
 
     def forward(self, episodes, labels, seq_lens, teacher_forcing=True):
         """
@@ -163,10 +163,11 @@ class EncoderDecoder(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self, hidden_dim, device):
         super(Attention, self).__init__()
         self.hidden_dim = hidden_dim
         self.attention_score = nn.Linear(in_features=2 * hidden_dim, out_features=1)
+        self.device = device
 
     def forward(self, decoder_hidden, encoder_hidden_outputs):
         """
@@ -177,7 +178,7 @@ class Attention(nn.Module):
         seq_len = encoder_hidden_outputs.shape[1]
 
         # Concatenate decoder hidden state with each encoder hidden state
-        repeated_decoder_hidden = torch.zeros((batch_size, seq_len, self.hidden_dim))
+        repeated_decoder_hidden = torch.zeros((batch_size, seq_len, self.hidden_dim), device=self.device)
         for idx, hidden in enumerate(decoder_hidden):
             repeated_decoder_hidden[idx] = hidden.repeat(1, seq_len, 1)
         # concatenated_hidden: [batch_size, seq_len, 2*hidden_dim]

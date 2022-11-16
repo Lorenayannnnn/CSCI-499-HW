@@ -107,22 +107,19 @@ def prefix_match(predicted_labels, gt_labels, labels_len):
     return pm/batch_size
 
 
-def exact_match(predicted_labels, gt_labels):
+def exact_match(predicted_labels, gt_labels, labels_lens):
     """
     params dim: [batch_size, instruction_num]
     average # of exact match of 1 batch
     """
     batch_size = len(gt_labels)
-    seq_len = len(gt_labels[0])
     em = 0.0
     for i in range(batch_size):
         same = True
+        seq_len = int(labels_lens[i].item())
         for j in range(seq_len):
             if predicted_labels[i][j] != gt_labels[i][j]:
                 same = False
-                break
-            elif predicted_labels[i][j] == 1 and gt_labels[i][j] == 1:
-                # STOP token
                 break
         em += 1 if same else 0
     return em/batch_size
@@ -140,9 +137,6 @@ def percentage_match(predicted_labels, gt_labels, labels_len):
         for j in range(seq_len):
             if predicted_labels[i][j] == gt_labels[i][j]:
                 match_score += 1
-            if predicted_labels[i][j] == 1 and gt_labels[i][j] == 1:
-                # STOP token
-                break
         total_match_score += match_score / seq_len
     return total_match_score/batch_size
 

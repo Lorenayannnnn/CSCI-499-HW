@@ -192,10 +192,10 @@ def train_epoch(
             optimizer.step()
 
         labels_lens = get_labels_seq_lens(labels)
-        action_exact_match_score = exact_match(all_predicted_actions, action_labels)
+        action_exact_match_score = exact_match(all_predicted_actions, action_labels, labels_lens)
         action_prefix_match_score = prefix_match(all_predicted_actions, action_labels, labels_lens)
         action_num_of_match_score = percentage_match(all_predicted_actions, action_labels, labels_lens)
-        target_exact_match_score = exact_match(all_predicted_targets, target_labels)
+        target_exact_match_score = exact_match(all_predicted_targets, target_labels, labels_lens)
         target_prefix_match_score = prefix_match(all_predicted_targets, target_labels, labels_lens)
         target_num_of_match_score = percentage_match(all_predicted_targets, target_labels, labels_lens)
 
