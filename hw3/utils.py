@@ -48,8 +48,8 @@ def build_tokenizer_table(train, vocab_size=1000):
         padded_lens.append(padded_len)
     corpus = Counter(word_list)
     corpus_ = sorted(corpus, key=corpus.get, reverse=True)[
-        : vocab_size - 4
-    ]  # save room for <pad>, <start>, <end>, and <unk>
+              : vocab_size - 4
+              ]  # save room for <pad>, <start>, <end>, and <unk>
     vocab_to_index = {w: i + 4 for i, w in enumerate(corpus_)}
     vocab_to_index["<pad>"] = 0
     vocab_to_index["<start>"] = 1
@@ -104,7 +104,7 @@ def prefix_match(predicted_labels, gt_labels, labels_len):
                 break
         pm += (j / seq_len)
 
-    return pm/batch_size
+    return pm / batch_size
 
 
 def exact_match(predicted_labels, gt_labels, labels_lens):
@@ -122,7 +122,7 @@ def exact_match(predicted_labels, gt_labels, labels_lens):
                 same = False
                 break
         em += 1 if same else 0
-    return em/batch_size
+    return em / batch_size
 
 
 def percentage_match(predicted_labels, gt_labels, labels_len):
@@ -138,7 +138,7 @@ def percentage_match(predicted_labels, gt_labels, labels_len):
             if predicted_labels[i][j] == gt_labels[i][j]:
                 match_score += 1
         total_match_score += match_score / seq_len
-    return total_match_score/batch_size
+    return total_match_score / batch_size
 
 
 def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dict, targets_to_index: dict,
@@ -174,7 +174,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
                     jdx += 1
                     if jdx == seq_len - 1:
                         break
-            episode_labels.append([actions_to_index[action],targets_to_index[target]])
+            episode_labels.append([actions_to_index[action], targets_to_index[target]])
             if jdx == seq_len - 1:
                 n_early_cutoff += 1
                 break
@@ -188,7 +188,7 @@ def encode_data(training_data: list, vocab_to_index: dict, actions_to_index: dic
     # [actions_to_index["A_STOP"], targets_to_index["T_STOP"]]
     for index, episode_label in enumerate(encoded_labels):
         encoded_labels[index].extend([[actions_to_index["A_PAD"], targets_to_index["T_PAD"]]] * (
-                    max_action_target_pair_len - len(episode_label)))
+                max_action_target_pair_len - len(episode_label)))
 
     print(
         "INFO: had to represent %d/%d (%.4f) tokens as unk with vocab limit %d"
@@ -246,11 +246,13 @@ def get_labels_seq_lens(batch_labels):
 
 def output_loss_graph(args, output_file_name: str, action_loss_data: list, target_loss_data: list, graph_title: str,
                       is_val: bool):
-    x_axis_data = [i for i in range(0, args.num_epochs, args.val_every)] if is_val else [i for i in range(args.num_epochs)]
+    x_axis_data = [i for i in range(0, args.num_epochs, args.val_every)] if is_val else [i for i in
+                                                                                         range(args.num_epochs)]
+
+    action_loss_data = [loss.cpu().detach().numpy() for loss in action_loss_data]
+    target_loss_data = [loss.cpu().detach().numpy() for loss in target_loss_data]
 
     figure, ax = plt.subplots()
-    action_loss_data = [loss.detach() for loss in action_loss_data]
-    target_loss_data = [loss.detach() for loss in target_loss_data]
     ax.plot(x_axis_data, action_loss_data, label="Action")
     ax.plot(x_axis_data, target_loss_data, label="Target")
     ax.set_title(graph_title)
@@ -263,7 +265,8 @@ def output_loss_graph(args, output_file_name: str, action_loss_data: list, targe
 
 def output_acc_graph(args, output_file_name: str, exact_match_data: list, prefix_match_data: list,
                      percentage_match: list, graph_title: str, is_val: bool):
-    x_axis_data = [i for i in range(0, args.num_epochs, args.val_every)] if is_val else [i for i in range(args.num_epochs)]
+    x_axis_data = [i for i in range(0, args.num_epochs, args.val_every)] if is_val else [i for i in
+                                                                                         range(args.num_epochs)]
 
     figure, ax = plt.subplots()
     ax.plot(x_axis_data, exact_match_data, label="Exact Match")
